@@ -78,6 +78,41 @@ Appended automatically when COMPLETED is triggered in Claude Code.
 
 ---
 
+## Milestone 1D — RLS Middleware in FastAPI
+**Date:** 2026-03-13
+
+### What changed
+- `api/app/deps.py` — added `conn.transaction()` wrapper around RLS setup so `SET LOCAL ROLE` is scoped correctly to the transaction
+- `api/app/routers/debug.py` — three new debug endpoints: `GET /debug/tickets/count`, `GET /debug/messages/count`, `GET /debug/messages/count`, `GET /debug/knowledge/count`
+- `api/app/main.py` — registered debug router
+- `seed/schema.sql` — added `GRANT rls_user TO neondb_owner` so the app's connection user can switch into the restricted role
+- `seed/mint_tokens.py` — helper script to mint JWTs for all three demo users directly from `api/.env.local` (for manual testing without a running Next.js server)
+
+### Key decisions
+- `conn.transaction()` is required for `SET LOCAL` to work — `SET LOCAL ROLE` resets at transaction end, which is exactly what you want for connection pool safety. Without the explicit transaction, psycopg operates in autocommit mode and `SET LOCAL` has no effect.
+- `GRANT rls_user TO neondb_owner` must be run once on Neon — this is the missing link between creating the `rls_user` role (which the schema did) and allowing the app user to switch into it. Added to `schema.sql` so future `db-push` runs include it automatically.
+- Table name is `ticket_messages` (not `messages`) and `knowledge_documents` (not `knowledge_docs`) — verified against schema before writing queries.
+
+### Key files
+- `api/app/deps.py` — `get_rls_db` dependency (now with transaction wrapper)
+- `api/app/routers/debug.py` — RLS verification endpoints
+- `seed/mint_tokens.py` — JWT minting helper for manual testing
+- `seed/schema.sql` — `GRANT rls_user TO neondb_owner` added
+
+### Gotchas
+- `SET LOCAL ROLE rls_user` silently does nothing outside a transaction. The original `deps.py` was missing `conn.transaction()`, so RLS was never actually activating.
+- `GRANT rls_user TO neondb_owner` is not in the original schema — Neon's superuser (`neondb_owner`) cannot `SET ROLE` to a role it isn't a member of. This caused a `permission denied to set role "rls_user"` 500 error on first test.
+- PowerShell: `curl` is `Invoke-WebRequest`; use `curl.exe` for real curl. `export VAR=val` doesn't work; use `$env:VAR = "val"`.
+
+### Verified
+- Agent JWT → `/debug/tickets/count` → `{"count": 337}` (Org #1 only) ✓
+- Agent JWT → `/debug/messages/count` → `{"total": 1715, "internal": 36}` ✓
+- Client JWT → `/debug/messages/count` → `{"total": 1679, "internal": 0}` (RLS strips internal) ✓
+- Agent JWT → `/debug/knowledge/count` → `{"total": 10}` ✓
+- Client JWT → `/debug/knowledge/count` → `{"total": 6}` (non-client-visible docs hidden) ✓
+
+---
+
 ## Milestone 1C — Authentication Flow
 **Date:** 2026-03-13
 

@@ -388,6 +388,8 @@ $$;
 GRANT USAGE ON SCHEMA public TO rls_user;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO rls_user;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO rls_user;
+-- Allow the app connection user to switch into rls_user
+GRANT rls_user TO neondb_owner;
 
 -- Enable RLS on all tenant-scoped tables
 ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;

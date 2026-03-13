@@ -28,6 +28,26 @@ The schema and seed data are the contract that every other component depends on.
 
 ---
 
+## Milestone 1D: RLS Middleware in FastAPI
+
+**What we built and why**
+
+This milestone activates the Row-Level Security policies that were deployed in 1B but never actually enforced. Before this, every FastAPI route was connecting to Postgres as the superuser, which bypasses RLS entirely — meaning any authenticated user could theoretically read any org's data. We wired in a `get_rls_db` dependency that wraps every request's database connection in a transaction, switches to the restricted `rls_user` role, and sets the four session variables the RLS policies read. After this milestone, data isolation is enforced at the database layer, not the application layer.
+
+**Key concepts under the hood**
+
+*`SET LOCAL` requires a transaction.* PostgreSQL's `SET LOCAL` scopes a session variable to the current transaction — when the transaction ends, the variable resets. This is ideal for connection pooling: you set `SET LOCAL ROLE rls_user` at the start of a request, run all your queries, and when the connection returns to the pool the role automatically drops back. But `SET LOCAL` only works inside an explicit transaction. Without `conn.transaction()`, psycopg operates in autocommit mode and `SET LOCAL` silently has no effect — queries run as the superuser the whole time. The original `deps.py` was missing the `conn.transaction()` wrapper, so RLS was never activating despite the code looking correct.
+
+*`GRANT rls_user TO neondb_owner`.* To `SET ROLE rls_user`, the current Postgres user must be a member of that role. The schema created `rls_user` and granted it table permissions, but never made `neondb_owner` (the app's connection user) a member. This is a Postgres security requirement — you can't switch into a role you don't belong to. The fix is one line: `GRANT rls_user TO neondb_owner`. Without it, every request that tries to activate RLS gets `permission denied to set role "rls_user"` and returns a 500.
+
+*RLS policies filter at the row level, not the query level.* The four session variables — `app.org_id`, `app.workspace_id`, `app.user_id`, `app.user_role` — are read by helper functions in the schema (`current_org_id()`, `current_user_role()`, etc.) that the RLS policies call on every row access. A `SELECT * FROM tickets` with RLS active returns only rows where `org_id = current_org_id()`. A `client_user` querying `ticket_messages` gets only non-internal rows because the `message_isolation` policy appends `AND (current_user_role() = 'client_user' AND is_internal = FALSE)`. This happens inside Postgres — the application never writes WHERE clauses for tenant isolation, and a missing WHERE clause can't accidentally leak data.
+
+**How these pieces connect**
+
+Every route handler written from here on uses `Depends(get_rls_db)` instead of `Depends(get_db)` — this is the convention that makes all of Milestone 2 (the full API layer) safe by default. If a developer accidentally uses `get_db` in a user-facing route, they bypass RLS and expose cross-tenant data with no other safety net. The debug endpoints we built here are temporary but serve as the integration test harness for RLS correctness — the fact that `client_user` sees `internal: 0` and fewer knowledge docs proves the policies are actually firing, not just defined.
+
+---
+
 ## Milestone 1C: Authentication Flow
 
 **What we built and why**

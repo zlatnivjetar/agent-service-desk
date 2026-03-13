@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 1D: RLS Middleware in FastAPI**
+**→ Milestone 2A: Ticket & Message Endpoints**
 
 Full implementation plan: `docs/implementation-plan.md`
 When instructed to "implement current milestone", read the matching sub-milestone from that file.
