@@ -28,26 +28,6 @@ The schema and seed data are the contract that every other component depends on.
 
 ---
 
-## Milestone 1D: RLS Middleware in FastAPI
-
-**What we built and why**
-
-This milestone activates the Row-Level Security policies that were deployed in 1B but never actually enforced. Before this, every FastAPI route was connecting to Postgres as the superuser, which bypasses RLS entirely — meaning any authenticated user could theoretically read any org's data. We wired in a `get_rls_db` dependency that wraps every request's database connection in a transaction, switches to the restricted `rls_user` role, and sets the four session variables the RLS policies read. After this milestone, data isolation is enforced at the database layer, not the application layer.
-
-**Key concepts under the hood**
-
-*`SET LOCAL` requires a transaction.* PostgreSQL's `SET LOCAL` scopes a session variable to the current transaction — when the transaction ends, the variable resets. This is ideal for connection pooling: you set `SET LOCAL ROLE rls_user` at the start of a request, run all your queries, and when the connection returns to the pool the role automatically drops back. But `SET LOCAL` only works inside an explicit transaction. Without `conn.transaction()`, psycopg operates in autocommit mode and `SET LOCAL` silently has no effect — queries run as the superuser the whole time. The original `deps.py` was missing the `conn.transaction()` wrapper, so RLS was never activating despite the code looking correct.
-
-*`GRANT rls_user TO neondb_owner`.* To `SET ROLE rls_user`, the current Postgres user must be a member of that role. The schema created `rls_user` and granted it table permissions, but never made `neondb_owner` (the app's connection user) a member. This is a Postgres security requirement — you can't switch into a role you don't belong to. The fix is one line: `GRANT rls_user TO neondb_owner`. Without it, every request that tries to activate RLS gets `permission denied to set role "rls_user"` and returns a 500.
-
-*RLS policies filter at the row level, not the query level.* The four session variables — `app.org_id`, `app.workspace_id`, `app.user_id`, `app.user_role` — are read by helper functions in the schema (`current_org_id()`, `current_user_role()`, etc.) that the RLS policies call on every row access. A `SELECT * FROM tickets` with RLS active returns only rows where `org_id = current_org_id()`. A `client_user` querying `ticket_messages` gets only non-internal rows because the `message_isolation` policy appends `AND (current_user_role() = 'client_user' AND is_internal = FALSE)`. This happens inside Postgres — the application never writes WHERE clauses for tenant isolation, and a missing WHERE clause can't accidentally leak data.
-
-**How these pieces connect**
-
-Every route handler written from here on uses `Depends(get_rls_db)` instead of `Depends(get_db)` — this is the convention that makes all of Milestone 2 (the full API layer) safe by default. If a developer accidentally uses `get_db` in a user-facing route, they bypass RLS and expose cross-tenant data with no other safety net. The debug endpoints we built here are temporary but serve as the integration test harness for RLS correctness — the fact that `client_user` sees `internal: 0` and fewer knowledge docs proves the policies are actually firing, not just defined.
-
----
-
 ## Milestone 1C: Authentication Flow
 
 **What we built and why**
@@ -69,3 +49,45 @@ This milestone wires together the two halves of the system so they can trust eac
 **How these pieces connect**
 
 The JWT that `token/route.ts` mints is exactly what FastAPI's `get_current_user` dependency (from 1A) decodes on every request. The claims it extracts — `user_id`, `org_id`, `workspace_id`, `role` — are what `get_rls_db` (also from 1A) sets as Postgres session variables to activate RLS. If the token mints the wrong `org_id` or `workspace_id`, every query in the system silently returns wrong-tenant data or nothing at all. The next milestone (1D) verifies that RLS is actually activated correctly by adding integration tests against the live database.
+
+---
+
+## Milestone 1D: RLS Middleware in FastAPI
+
+**What we built and why**
+
+This milestone activates the Row-Level Security policies that were deployed in 1B but never actually enforced. Before this, every FastAPI route was connecting to Postgres as the superuser, which bypasses RLS entirely — meaning any authenticated user could theoretically read any org's data. We wired in a `get_rls_db` dependency that wraps every request's database connection in a transaction, switches to the restricted `rls_user` role, and sets the four session variables the RLS policies read. After this milestone, data isolation is enforced at the database layer, not the application layer.
+
+**Key concepts under the hood**
+
+*`SET LOCAL` requires a transaction.* PostgreSQL's `SET LOCAL` scopes a session variable to the current transaction — when the transaction ends, the variable resets. This is ideal for connection pooling: you set `SET LOCAL ROLE rls_user` at the start of a request, run all your queries, and when the connection returns to the pool the role automatically drops back. But `SET LOCAL` only works inside an explicit transaction. Without `conn.transaction()`, psycopg operates in autocommit mode and `SET LOCAL` silently has no effect — queries run as the superuser the whole time. The original `deps.py` was missing the `conn.transaction()` wrapper, so RLS was never activating despite the code looking correct.
+
+*`GRANT rls_user TO neondb_owner`.* To `SET ROLE rls_user`, the current Postgres user must be a member of that role. The schema created `rls_user` and granted it table permissions, but never made `neondb_owner` (the app's connection user) a member. This is a Postgres security requirement — you can't switch into a role you don't belong to. The fix is one line: `GRANT rls_user TO neondb_owner`. Without it, every request that tries to activate RLS gets `permission denied to set role "rls_user"` and returns a 500.
+
+*RLS policies filter at the row level, not the query level.* The four session variables — `app.org_id`, `app.workspace_id`, `app.user_id`, `app.user_role` — are read by helper functions in the schema (`current_org_id()`, `current_user_role()`, etc.) that the RLS policies call on every row access. A `SELECT * FROM tickets` with RLS active returns only rows where `org_id = current_org_id()`. A `client_user` querying `ticket_messages` gets only non-internal rows because the `message_isolation` policy appends `AND (current_user_role() = 'client_user' AND is_internal = FALSE)`. This happens inside Postgres — the application never writes WHERE clauses for tenant isolation, and a missing WHERE clause can't accidentally leak data.
+
+**How these pieces connect**
+
+Every route handler written from here on uses `Depends(get_rls_db)` instead of `Depends(get_db)` — this is the convention that makes all of Milestone 2 (the full API layer) safe by default. If a developer accidentally uses `get_db` in a user-facing route, they bypass RLS and expose cross-tenant data with no other safety net. The debug endpoints we built here are temporary but serve as the integration test harness for RLS correctness — the fact that `client_user` sees `internal: 0` and fewer knowledge docs proves the policies are actually firing, not just defined.
+
+---
+
+## Milestone 2A: Ticket & Message Endpoints
+
+**What we built and why**
+
+This milestone is the first real API surface — the endpoints the frontend will call to display the ticket queue, open a ticket detail, update ticket fields, post messages, and reassign tickets. Before this, the system could authenticate users and enforce RLS, but had no data-serving layer. Everything in Milestone 2 follows the same pattern: thin route handlers, Pydantic schemas for shapes, and SQL isolated in query functions. The tickets domain is the largest and most central, so getting the pattern right here means 2B and 2C can follow the same structure cleanly.
+
+**Key concepts under the hood**
+
+*Router → Schema → Query separation.* Each endpoint in `routers/tickets.py` is intentionally thin: it validates the incoming request via Pydantic, calls a function in `queries/tickets.py`, and returns a schema. No SQL lives in the router; no HTTP concepts (status codes, request bodies) leak into the query layer. This separation matters because the query layer is reused across multiple endpoints — `get_ticket()` is called by `GET /tickets/{id}`, `PATCH /tickets/{id}`, and `POST /tickets/{id}/assign`. If the SQL were inline in each route handler, a bug fix would need to be applied in three places.
+
+*Whitelisting sort parameters before SQL interpolation.* Pagination filters like `status=open` are passed as `%s` parameters and are safe. But `ORDER BY t.{sort_by} {sort_order}` cannot be parameterized — Postgres doesn't allow column names or keywords as bind parameters. We solve this by checking `sort_by` against `_ALLOWED_SORT_COLUMNS` (a set of known column names) and `sort_order` against `{"asc", "desc"}` before interpolating them. Without the whitelist, a malicious `sort_by=id; DROP TABLE tickets--` in the query string would be executed as SQL.
+
+*Dynamic UPDATE with a field whitelist.* `PATCH /tickets/{id}` accepts a partial update body — any subset of `{status, priority, assignee_id, category, team}`. The query builds a SET clause dynamically from whichever fields are non-null. The field names come from a Pydantic model (not raw user input), but we still check them against `_ALLOWED_UPDATE_FIELDS` before interpolating into the SET clause. Values are always passed as `%s` parameters. This pattern is the safe way to implement partial updates in SQL without an ORM.
+
+*Aggregating sub-queries into a detail response.* `GET /tickets/{id}` returns a `TicketDetail` that embeds messages, the latest prediction, the latest draft, and assignment history. These live in four separate tables, so we make four separate queries rather than a single large JOIN. JOINs with one-to-many relationships (one ticket, many messages) cause row multiplication that requires deduplication logic; separate queries are simpler, predictable, and easier to read. The `_build_detail()` helper in the router collects all four results and assembles the response, and is reused by the PATCH and assign endpoints which also return `TicketDetail`.
+
+**How these pieces connect**
+
+The RLS enforcement from 1D is invisible here but active on every query — the ticket list is already scoped to the current user's org, and internal messages are already filtered for `client_user` sessions, with no WHERE clauses written in the query functions. The `schemas/` and `queries/` packages established here are the template for 2B (knowledge documents) and 2C (review queue), which add new files to those packages following the exact same structure. When the frontend is built in Milestone 4, it will call these endpoints directly — getting the response shape right now means the frontend can be built against a stable contract.

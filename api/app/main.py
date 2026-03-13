@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.db import pool
-from app.routers import auth, debug, health
+from app.routers import auth, debug, health, tickets
 
 
 @asynccontextmanager
@@ -28,3 +28,4 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(debug.router)
+app.include_router(tickets.router, prefix="/tickets", tags=["tickets"])

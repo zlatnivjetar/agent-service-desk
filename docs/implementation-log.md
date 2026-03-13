@@ -161,3 +161,40 @@ Appended automatically when COMPLETED is triggered in Claude Code.
 
 ---
 
+## Milestone 2A — Ticket & Message Endpoints
+**Date:** 2026-03-13
+
+### What changed
+- Created `api/app/schemas/` package with `common.py` (`PaginationParams`, `PaginatedResponse`) and `tickets.py` (8 Pydantic models: `TicketListItem`, `TicketDetail`, `TicketMessage`, `TicketPrediction`, `TicketDraft`, `TicketAssignment`, `TicketUpdate`, `MessageCreate`, `AssignRequest`)
+- Created `api/app/queries/tickets.py` — 7 SQL query functions: `list_tickets`, `get_ticket`, `get_ticket_messages`, `get_latest_prediction`, `get_latest_draft`, `get_ticket_assignments`, `update_ticket`, `insert_message`, `assign_ticket`
+- Created `api/app/routers/tickets.py` — 5 endpoints: `GET /tickets`, `GET /tickets/{id}`, `PATCH /tickets/{id}`, `POST /tickets/{id}/messages`, `POST /tickets/{id}/assign`
+- Updated `api/app/main.py` to register the tickets router at `/tickets`
+- Added `set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]` to justfile for PowerShell compatibility
+
+### Key decisions
+- Sort column and direction are whitelisted (`_ALLOWED_SORT_COLUMNS`, `_ALLOWED_SORT_ORDERS`) before interpolation into SQL — they can't be parameterized as values, so whitelist is the safe pattern
+- `_build_detail()` helper in the router DRYs up the four sub-queries (messages, prediction, draft, assignments) shared by GET detail, PATCH, and POST assign
+- `update_ticket` whitelists field names via `_ALLOWED_UPDATE_FIELDS` before building dynamic SET clause — prevents injection even though values come from Pydantic
+- `assign_ticket` uses `COALESCE(%s::team_name, team)` so passing `None` preserves the existing team assignment rather than nulling it out
+- `dict_row` is set on the pool (from 1A), so all query results are already dicts — no conversion needed at the query layer
+
+### Key files
+- `api/app/schemas/tickets.py` — all request/response shapes for the tickets domain
+- `api/app/queries/tickets.py` — all SQL isolated here; routers never write SQL directly
+- `api/app/routers/tickets.py` — thin route handlers; each is: validate → query → return schema
+
+### Gotchas
+- `just dev-api` fails in PowerShell without `set windows-shell` in the justfile — `just` on Windows looks for `sh` which isn't in the default PowerShell PATH
+- Run uvicorn from inside `api/` not the repo root (the venv is at `api/.venv` and the recipe does `cd api` from the root)
+- Port 8000 was occupied by a previous uvicorn process; killed with `taskkill /PID <pid> /F`
+
+### Verified
+- `GET /tickets` → 337 tickets, 14 pages, correct pagination metadata ✓
+- `GET /tickets/{id}` → full detail with nested messages, prediction, draft, assignments ✓
+- Agent JWT: 6 messages on ticket `14898025`, including 1 `is_internal: true` ✓
+- Client JWT: 5 messages on same ticket (`is_internal: true` filtered by RLS) ✓
+- Client JWT: `confidence: null`, `latest_prediction: null` (RLS blocks `ticket_predictions` for `client_user`) ✓
+- Client JWT: `latest_draft: null` (RLS blocks `draft_generations` for `client_user`) ✓
+
+---
+

@@ -1,0 +1,231 @@
+from typing import Optional
+
+from psycopg import Connection
+
+_ALLOWED_SORT_COLUMNS = {"created_at", "updated_at", "priority", "status", "subject"}
+_ALLOWED_SORT_ORDERS = {"asc", "desc"}
+
+# Base SELECT used for both list and detail endpoints
+_TICKET_SELECT = """
+    SELECT
+        t.id, t.subject, t.status, t.priority, t.category, t.team,
+        t.assignee_id, t.created_at, t.updated_at,
+        u.full_name   AS assignee_name,
+        o.name        AS org_name,
+        sp.name       AS sla_policy_name,
+        (
+            SELECT tp.confidence
+            FROM ticket_predictions tp
+            WHERE tp.ticket_id = t.id
+            ORDER BY tp.created_at DESC
+            LIMIT 1
+        ) AS confidence
+    FROM tickets t
+    LEFT JOIN users u  ON u.id  = t.assignee_id
+    LEFT JOIN organizations o   ON o.id  = t.org_id
+    LEFT JOIN sla_policies sp   ON sp.id = t.sla_policy_id
+"""
+
+_ALLOWED_UPDATE_FIELDS = {"status", "priority", "assignee_id", "category", "team"}
+
+
+def list_tickets(
+    conn: Connection,
+    page: int,
+    per_page: int,
+    status: Optional[str],
+    priority: Optional[str],
+    assignee_id: Optional[str],
+    category: Optional[str],
+    team: Optional[str],
+    sort_by: str,
+    sort_order: str,
+) -> tuple[int, list[dict]]:
+    # Whitelist sort params — never interpolated from raw user input
+    if sort_by not in _ALLOWED_SORT_COLUMNS:
+        sort_by = "created_at"
+    if sort_order not in _ALLOWED_SORT_ORDERS:
+        sort_order = "desc"
+
+    where_clauses: list[str] = []
+    params: list = []
+
+    if status is not None:
+        where_clauses.append("t.status = %s")
+        params.append(status)
+    if priority is not None:
+        where_clauses.append("t.priority = %s")
+        params.append(priority)
+    if assignee_id is not None:
+        where_clauses.append("t.assignee_id = %s")
+        params.append(assignee_id)
+    if category is not None:
+        where_clauses.append("t.category = %s")
+        params.append(category)
+    if team is not None:
+        where_clauses.append("t.team = %s")
+        params.append(team)
+
+    where_sql = " AND ".join(where_clauses) if where_clauses else "TRUE"
+
+    total_row = conn.execute(
+        f"SELECT count(*) AS total FROM tickets t WHERE {where_sql}", params
+    ).fetchone()
+    total = total_row["total"]
+
+    query_sql = (
+        _TICKET_SELECT
+        + f"WHERE {where_sql}\n"
+        + f"ORDER BY t.{sort_by} {sort_order}\n"
+        + "LIMIT %s OFFSET %s"
+    )
+    page_params = params + [per_page, (page - 1) * per_page]
+    rows = conn.execute(query_sql, page_params).fetchall()
+    return total, rows
+
+
+def get_ticket(conn: Connection, ticket_id: str) -> Optional[dict]:
+    return conn.execute(
+        _TICKET_SELECT + "WHERE t.id = %s", [ticket_id]
+    ).fetchone()
+
+
+def get_ticket_messages(conn: Connection, ticket_id: str) -> list[dict]:
+    return conn.execute(
+        """
+        SELECT
+            m.id, m.sender_id, m.sender_type, m.body, m.is_internal, m.created_at,
+            u.full_name AS sender_name
+        FROM ticket_messages m
+        LEFT JOIN users u ON u.id = m.sender_id
+        WHERE m.ticket_id = %s
+        ORDER BY m.created_at ASC
+        """,
+        [ticket_id],
+    ).fetchall()
+
+
+def get_latest_prediction(conn: Connection, ticket_id: str) -> Optional[dict]:
+    return conn.execute(
+        """
+        SELECT
+            id, predicted_category, predicted_priority, predicted_team,
+            escalation_suggested, escalation_reason, confidence, created_at
+        FROM ticket_predictions
+        WHERE ticket_id = %s
+        ORDER BY created_at DESC
+        LIMIT 1
+        """,
+        [ticket_id],
+    ).fetchone()
+
+
+def get_latest_draft(conn: Connection, ticket_id: str) -> Optional[dict]:
+    return conn.execute(
+        """
+        SELECT
+            id, body, evidence_chunk_ids, confidence, unresolved_questions,
+            send_ready, approval_outcome, created_at
+        FROM draft_generations
+        WHERE ticket_id = %s
+        ORDER BY created_at DESC
+        LIMIT 1
+        """,
+        [ticket_id],
+    ).fetchone()
+
+
+def get_ticket_assignments(conn: Connection, ticket_id: str) -> list[dict]:
+    return conn.execute(
+        """
+        SELECT id, assigned_to, assigned_by, team, created_at
+        FROM ticket_assignments
+        WHERE ticket_id = %s
+        ORDER BY created_at ASC
+        """,
+        [ticket_id],
+    ).fetchall()
+
+
+def update_ticket(conn: Connection, ticket_id: str, updates: dict) -> Optional[dict]:
+    set_clauses: list[str] = []
+    params: list = []
+
+    for field, value in updates.items():
+        if field not in _ALLOWED_UPDATE_FIELDS:
+            continue
+        set_clauses.append(f"{field} = %s")
+        # UUID values must be stringified for psycopg enum columns
+        params.append(str(value) if hasattr(value, "hex") else value)
+
+    if not set_clauses:
+        return get_ticket(conn, ticket_id)
+
+    set_clauses.append("updated_at = now()")
+    params.append(ticket_id)
+
+    result = conn.execute(
+        f"UPDATE tickets SET {', '.join(set_clauses)} WHERE id = %s RETURNING id",
+        params,
+    ).fetchone()
+
+    if result is None:
+        return None
+    return get_ticket(conn, ticket_id)
+
+
+def insert_message(
+    conn: Connection,
+    ticket_id: str,
+    sender_id: str,
+    sender_type: str,
+    body: str,
+    is_internal: bool,
+) -> dict:
+    row = conn.execute(
+        """
+        INSERT INTO ticket_messages (ticket_id, sender_id, sender_type, body, is_internal)
+        VALUES (%s, %s, %s, %s, %s)
+        RETURNING id, sender_id, sender_type, body, is_internal, created_at
+        """,
+        [ticket_id, sender_id, sender_type, body, is_internal],
+    ).fetchone()
+
+    # Fetch sender name (dict_row returns a Mapping — copy to plain dict for mutation)
+    row = dict(row)
+    if row["sender_id"]:
+        user = conn.execute(
+            "SELECT full_name FROM users WHERE id = %s", [row["sender_id"]]
+        ).fetchone()
+        row["sender_name"] = user["full_name"] if user else None
+    else:
+        row["sender_name"] = None
+
+    return row
+
+
+def assign_ticket(
+    conn: Connection,
+    ticket_id: str,
+    assignee_id: str,
+    assigned_by: str,
+    team: Optional[str],
+) -> Optional[dict]:
+    conn.execute(
+        """
+        UPDATE tickets
+        SET assignee_id = %s,
+            team = COALESCE(%s::team_name, team),
+            updated_at = now()
+        WHERE id = %s
+        """,
+        [assignee_id, team, ticket_id],
+    )
+    conn.execute(
+        """
+        INSERT INTO ticket_assignments (ticket_id, assigned_to, assigned_by, team)
+        VALUES (%s, %s, %s, %s)
+        """,
+        [ticket_id, assignee_id, assigned_by, team],
+    )
+    return get_ticket(conn, ticket_id)
