@@ -25,3 +25,27 @@ This milestone takes the schema we designed in 1A and makes it real: we deployed
 **How these pieces connect**
 
 The schema and seed data are the contract that every other component depends on. The RLS policies we deployed here are what `get_rls_db` in `api/app/deps.py` (from 1A) enforces on every request — if the policies weren't deployed correctly, the entire access control model silently breaks. The demo account UUIDs and the org/workspace IDs they belong to are what the auth flow in 1C will embed in JWTs and what the frontend in later milestones will use to render a realistic demo. Getting the data shape wrong here means debugging every downstream component against a broken foundation.
+
+---
+
+## Milestone 1C: Authentication Flow
+
+**What we built and why**
+
+This milestone wires together the two halves of the system so they can trust each other. Before this, the browser had no way to prove its identity to FastAPI, and FastAPI had no way to know which tenant was making a request. We built the full chain: BetterAuth handles browser login and sessions in Next.js; a token endpoint mints a short-lived JWT from that session; and FastAPI validates that JWT on every request. After this milestone, every API call carries a verified identity.
+
+**Key concepts under the hood**
+
+*Why two auth layers (BetterAuth + JWT)?* BetterAuth lives in Next.js and manages the browser session — email/password login, cookies, session renewal. FastAPI is a completely separate process and can't read Next.js cookies. The solution is to treat the JWT as a translation layer: Next.js's `/api/token` route reads the BetterAuth session (which it can verify directly), looks up the user's org/workspace/role from our database, and signs a compact JWT. FastAPI only needs to verify the JWT signature with a shared secret — it never calls BetterAuth. This keeps the two services fully decoupled while maintaining a single source of truth for identity.
+
+*JWT signing with `jose`.* The `jose` library (used in `token/route.ts`) signs JWTs using the HS256 algorithm: a HMAC-SHA256 signature computed over the header + payload using the `JWT_SECRET`. FastAPI's `PyJWT` library verifies it using the same secret. The JWT carries `user_id`, `org_id`, `workspace_id`, and `role` as claims with a 1-hour expiry. Without the expiry, a stolen token would be valid forever. Without the signature, any client could forge claims. The shared secret means both services must have the same `JWT_SECRET` in their `.env.local` — a mismatch silently breaks all API calls.
+
+*Email as the join key in `token/route.ts`.* When the token route reads the BetterAuth session, it gets BetterAuth's own user ID (an auto-generated string like `M0NGiNfUfC9sRNTPmrGHrYR1ils7dRH4`), not our app's UUID. Rather than adding a `better_auth_id` column to our `users` table, we join on email — both our `users` table and BetterAuth's `user` table share the email field. The query joins `users → memberships → workspace_memberships` to get the full set of claims. This keeps the schema clean and works because email is enforced unique in both tables.
+
+*Next.js 16 `proxy.ts` vs. `middleware.ts`.* In Next.js 16, the `middleware.ts` convention was deprecated in favour of `proxy.ts`, and the exported function must be named `proxy` (not `middleware`). The proxy runs before every matched request and checks for the presence of BetterAuth's session cookie (`better-auth.session_token`). It does NOT validate the cookie — just checks it exists. Full validation happens in server routes that call `auth.api.getSession()`. The cookie-presence check is enough to gate navigation (unauthenticated users get redirected to `/login`) without needing a database round-trip on every page load.
+
+*BetterAuth's internal Kysely adapter.* BetterAuth uses Kysely as its SQL query builder under the hood. When you pass a `pg.Pool` to `betterAuth({ database: pool })`, BetterAuth detects that the object has a `connect` method and automatically wraps it in `new PostgresDialect({ pool })`. There is no CLI for migrations in BetterAuth 1.5.x (the `bin` field in `package.json` is empty). Instead, the internal context object (accessible at `auth.$context`, a Promise) exposes `runMigrations()`, which we call from `seed/migrate_auth.ts`. This is not part of the public API and was discovered by reading the compiled source in `dist/`.
+
+**How these pieces connect**
+
+The JWT that `token/route.ts` mints is exactly what FastAPI's `get_current_user` dependency (from 1A) decodes on every request. The claims it extracts — `user_id`, `org_id`, `workspace_id`, `role` — are what `get_rls_db` (also from 1A) sets as Postgres session variables to activate RLS. If the token mints the wrong `org_id` or `workspace_id`, every query in the system silently returns wrong-tenant data or nothing at all. The next milestone (1D) verifies that RLS is actually activated correctly by adding integration tests against the live database.

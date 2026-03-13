@@ -78,3 +78,51 @@ Appended automatically when COMPLETED is triggered in Claude Code.
 
 ---
 
+## Milestone 1C — Authentication Flow
+**Date:** 2026-03-13
+
+### What changed
+- Installed `better-auth` (already present), `pg`, `@types/pg`, `jose`, `tsx` (dev) in `web/`
+- `web/src/lib/auth.ts` — BetterAuth server instance with `pg.Pool` database connection and `minPasswordLength: 6`
+- `web/src/lib/auth-client.ts` — BetterAuth browser client via `createAuthClient()`
+- `web/src/app/api/auth/[...all]/route.ts` — BetterAuth catch-all route handler
+- `web/src/app/api/token/route.ts` — reads BetterAuth session, joins `users`/`memberships`/`workspace_memberships` by email, mints HS256 JWT via `jose`
+- `web/src/app/login/page.tsx` — email/password form using `authClient.signIn.email()`
+- `web/src/proxy.ts` — Next.js 16 proxy (replaces deprecated `middleware.ts`) with cookie-presence auth guard
+- `web/src/app/page.tsx` — root route now redirects to `/tickets`
+- `web/.env.local` — added `DATABASE_URL`, `JWT_SECRET`, `BETTER_AUTH_URL`
+- `api/app/routers/auth.py` — `GET /auth/me` endpoint returning validated `CurrentUser`
+- `api/app/main.py` — registered auth router
+- `seed/migrate_auth.ts` — creates BetterAuth tables via `auth.$context.runMigrations()`
+- `seed/demo_auth.ts` — seeds 3 demo users via `auth.api.signUpEmail()`
+- `justfile` — added `db-auth-migrate`, `db-seed-auth`
+
+### Key decisions
+- **Email as join key**: `token/route.ts` joins BetterAuth's session to our `users` table by email, not by ID. This avoids a schema migration (no `better_auth_id` column) and works cleanly since both tables share the email field.
+- **Cookie-presence proxy**: The Next.js proxy only checks if `better-auth.session_token` exists, not if it's valid. Full session validation happens in server routes that call `auth.api.getSession()`. This keeps the proxy lightweight and avoids needing a database connection in the edge layer.
+- **`minPasswordLength: 6`**: BetterAuth defaults to 8; `lead123` is 7 characters. Configured explicitly to match the spec's demo passwords.
+- **`seed/migrate_auth.ts` uses `auth.$context`**: BetterAuth's public `auth` object doesn't expose `runMigrations()` directly. The internal context (a Promise accessible at `auth.$context`) does. Confirmed by reading BetterAuth's `dist/auth/base.mjs`.
+- **seed scripts run `cd web && npx tsx --env-file=.env.local ../seed/script.ts`**: tsx is installed in `web/node_modules`, env vars come from `web/.env.local`, and module resolution finds `better-auth` in `web/node_modules` because `web/src/lib/auth.ts` is the actual importer.
+- **`middleware.ts` → `proxy.ts` + renamed export**: Next.js 16.1.6 deprecated `middleware` in favour of `proxy`; the exported function must also be named `proxy` (not `middleware`).
+
+### Key files
+- `web/src/lib/auth.ts` — BetterAuth server config (all auth flows originate here)
+- `web/src/app/api/token/route.ts` — the bridge between BetterAuth sessions and FastAPI JWTs
+- `web/src/proxy.ts` — route guard for all non-API pages
+- `api/app/routers/auth.py` — `/auth/me` verification endpoint
+- `seed/migrate_auth.ts`, `seed/demo_auth.ts` — one-time setup scripts
+
+### Gotchas
+- BetterAuth uses Kysely internally; a `pg.Pool` is accepted directly (it has a `connect` method, which BetterAuth detects and wraps in `PostgresDialect({ pool: db })`)
+- `npx better-auth migrate` does not exist — BetterAuth 1.5.x has no CLI binary; migration runs via `auth.$context.runMigrations()`
+- Clearing `better-auth.session_token` cookie is required to test the login redirect (old cookie from seeding persists in the browser)
+- PowerShell: `curl` is an alias for `Invoke-WebRequest`; use `Invoke-RestMethod` with `@{ Authorization = "Bearer $token" }`
+
+### Verified
+- `GET /health` → `{"status":"ok","database":"connected"}` ✓
+- Login at `http://localhost:3000/login` with all 3 demo accounts ✓
+- `POST /api/token` returns signed JWT for each account ✓
+- `GET /auth/me` with JWT returns correct `user_id`, `org_id`, `workspace_id`, `role` for all 3 users ✓
+
+---
+
