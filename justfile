@@ -5,12 +5,19 @@ dev-api:
     cd api && .venv/Scripts/uvicorn app.main:app --reload --port 8000
 
 db-push:
-    psql $DATABASE_URL -f seed/schema.sql
+    cd seed && python push_schema.py
 
 db-seed:
     cd seed && python seed.py
 
+db-demo:
+    cd seed && python demo_accounts.py
+
+db-verify:
+    cd seed && python verify.py
+
 db-reset:
-    psql $DATABASE_URL -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+    cd seed && python reset_db.py
     just db-push
     just db-seed
+    just db-demo

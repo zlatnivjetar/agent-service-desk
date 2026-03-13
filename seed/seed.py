@@ -213,7 +213,7 @@ FIRST_MESSAGES = {
         "Zapier trigger 'New Ticket Created' stopped firing. We haven't changed anything on our end. Other Zapier connections to your API are working. Trigger ID: {trigger_id}.",
     ],
     "api_issue": [
-        "GET /v2/contacts is returning 500 errors since around {time} this morning. Affects all our API calls to this endpoint. Other endpoints seem fine. Response body: {\"error\": \"internal_server_error\", \"request_id\": \"{req_id}\"}.",
+        "GET /v2/contacts is returning 500 errors since around {time} this morning. Affects all our API calls to this endpoint. Other endpoints seem fine. Response body: {{\"error\": \"internal_server_error\", \"request_id\": \"{req_id}\"}}.",
         "Your rate limit docs say 100 requests/minute for our plan tier, but we're hitting 429 responses at around 60 requests/minute. We've verified our counter is accurate. Has the limit changed?",
         "OAuth token refresh is returning invalid_grant. This started happening randomly about {days} days ago. The refresh token is not expired according to the TTL in your docs. We have to re-auth the whole flow to fix it.",
         "The pagination cursor on GET /v2/tickets breaks when the result set is over 10,000 records. The cursor value returned in the response becomes invalid for the next page request. Works fine under 10K.",
@@ -567,8 +567,14 @@ def copy_insert(cur, table: str, columns: list[str], rows: list[tuple]):
     """Bulk insert using COPY for maximum performance."""
     buf = io.StringIO()
     for row in rows:
-        line = "\t".join(escape_copy(str(v)) if v is not None else "\\N" for v in row)
-        buf.write(line + "\n")
+        parts = []
+        for v in row:
+            # None and the \N sentinel both map to COPY null
+            if v is None or v == "\\N":
+                parts.append("\\N")
+            else:
+                parts.append(escape_copy(str(v)))
+        buf.write("\t".join(parts) + "\n")
     buf.seek(0)
     col_str = ", ".join(columns)
     with cur.copy(f"COPY {table} ({col_str}) FROM STDIN") as copy:
@@ -847,6 +853,7 @@ def gen_tickets(
                 name=fake.name(),
                 days=rng.randint(1, 14),
                 email=fake.email(),
+                competitor=rng.choice(["Zendesk", "Freshdesk", "Intercom", "Help Scout"]),
             )
 
             creator = rng.choice(client_users)
@@ -888,6 +895,7 @@ def gen_tickets(
                 num=rng.randint(10000, 99999), month=fake.month_name(),
                 company=fake.company(), date=fake.date_this_year().isoformat(),
                 name=fake.name(), days=rng.randint(1, 14), email=fake.email(),
+                competitor=rng.choice(["Zendesk", "Freshdesk", "Intercom", "Help Scout"]),
             )
             priority = rng.choices(PRIORITIES, weights=PRIORITY_WEIGHTS)[0]
             team = rng.choice(CATEGORY_TEAM_MAP[category])
@@ -1076,11 +1084,11 @@ def gen_knowledge_docs(workspaces: list[tuple]) -> tuple[list[tuple], list[tuple
 
         # Chunk the content: split by double-newline paragraphs
         paragraphs = [p.strip() for p in content.split("\n\n") if p.strip()]
-        # Group paragraphs into chunks of 2-4 paragraphs
+        # Group paragraphs into chunks of 1-2 paragraphs for ~5-8 chunks per doc
         chunk_idx = 0
         j = 0
         while j < len(paragraphs):
-            chunk_size = rng.randint(2, 4)
+            chunk_size = rng.randint(1, 2)
             chunk_text = "\n\n".join(paragraphs[j:j + chunk_size])
             token_count = len(chunk_text.split()) * 4 // 3  # rough token estimate
 
@@ -1295,6 +1303,8 @@ def gen_eval_data(prompt_versions: list[tuple]) -> tuple[list[tuple], list[tuple
     ]
     eval_sets = sets
 
+    _competitors = ["Zendesk", "Freshdesk", "Intercom", "Help Scout"]
+
     # Distribute 150 examples: 60 classification, 50 routing, 40 citation
     for i in range(60):
         cat = rng.choice(CATEGORIES)
@@ -1303,6 +1313,7 @@ def gen_eval_data(prompt_versions: list[tuple]) -> tuple[list[tuple], list[tuple
             num=rng.randint(10000, 99999), month=fake.month_name(),
             company=fake.company(), date=fake.date_this_year().isoformat(),
             name=fake.name(), days=rng.randint(1, 14), email=fake.email(),
+            competitor=rng.choice(_competitors),
         )
         eval_examples.append((
             uid(), sets[0][0], "classification", text,
@@ -1317,6 +1328,7 @@ def gen_eval_data(prompt_versions: list[tuple]) -> tuple[list[tuple], list[tuple
             num=rng.randint(10000, 99999), month=fake.month_name(),
             company=fake.company(), date=fake.date_this_year().isoformat(),
             name=fake.name(), days=rng.randint(1, 14), email=fake.email(),
+            competitor=rng.choice(_competitors),
         )
         eval_examples.append((
             uid(), sets[1][0], "routing", text,
@@ -1330,6 +1342,7 @@ def gen_eval_data(prompt_versions: list[tuple]) -> tuple[list[tuple], list[tuple
             num=rng.randint(10000, 99999), month=fake.month_name(),
             company=fake.company(), date=fake.date_this_year().isoformat(),
             name=fake.name(), days=rng.randint(1, 14), email=fake.email(),
+            competitor=rng.choice(_competitors),
         )
         eval_examples.append((
             uid(), sets[2][0], "citation", text,
@@ -1460,7 +1473,7 @@ def main():
 
     with conn.cursor() as cur:
         # Disable RLS for seeding (run as superuser)
-        cur.execute("SET SESSION ROLE DEFAULT")
+        cur.execute("RESET ROLE")
 
         progress("Inserting organizations")
         copy_insert(cur, "organizations",

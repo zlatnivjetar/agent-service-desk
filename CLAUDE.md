@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 1B: Schema Deployment \& Seed Data**
+**→ Milestone 1C: Authentication Flow**
 
 Full implementation plan: `docs/implementation-plan.md`
 When instructed to "implement current milestone", read the matching sub-milestone from that file.
@@ -69,8 +69,20 @@ agent-service-desk/
 When I type exactly **COMPLETED**:
 
 1. Update "Current Milestone" at the top of this file to the next sub-milestone
-2. Append a summary to `docs/implementation-log.md`: what changed, key desicions made, key files touched, any gotchas
-3. Commit with message: `milestone <ID>: <brief description>`
+2. Append a summary to `docs/implementation-log.md`: what changed, key decisions made, key files touched, any gotchas
+3. Append a concepts debrief to `docs/concepts-log.md` (format below)
+4. Commit with message: `milestone <ID>: <brief description>`
 
 Only the exact standalone input **COMPLETED** triggers this.
 
+### Concepts Debrief Format (`docs/concepts-log.md`)
+
+For each completed milestone, append a section titled `## Milestone <ID>: <name>` containing:
+
+**What we built and why** — 2-3 sentences explaining the purpose of this milestone in plain language. What problem does it solve? Where does it sit in the overall system?
+
+**Key concepts under the hood** — For each major tool, pattern, or technique used in this milestone, write a short paragraph (3-5 sentences) covering: what it is, why we used it here instead of alternatives, and what would go wrong without it. Use concrete examples from the code we just wrote, not generic definitions.
+
+**How these pieces connect** — 2-3 sentences on how this milestone's work integrates with what came before and what comes next. What would break downstream if we got this wrong?
+
+Write this for someone who built the thing but wants to understand it well enough to explain it confidently in a technical interview — no jargon dumps, no oversimplification.

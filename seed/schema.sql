@@ -10,7 +10,7 @@ BEGIN;
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";      -- gen_random_uuid()
-CREATE EXTENSION IF NOT EXISTS "pgvector";       -- vector type + similarity search
+CREATE EXTENSION IF NOT EXISTS "vector";         -- vector type + similarity search (pgvector; Neon uses extension name "vector")
 
 -- ============================================================================
 -- Enums
