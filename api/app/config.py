@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings
 
 
@@ -10,7 +12,7 @@ class Settings(BaseSettings):
     jwt_expiry_minutes: int = 60
     cors_origins: list[str] = ["http://localhost:3000"]
 
-    model_config = {"env_file": ".env.local"}
+    model_config = {"env_file": Path(__file__).resolve().parents[1] / ".env.local"}
 
 
 settings = Settings()

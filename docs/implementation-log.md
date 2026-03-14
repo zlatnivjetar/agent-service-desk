@@ -306,3 +306,37 @@ Appended automatically when COMPLETED is triggered in Claude Code.
 
 ---
 
+## Milestone 3A — OpenAI Provider Module
+**Date:** 2026-03-14
+
+### What changed
+- Created `api/app/providers/openai.py` — thin wrapper around the OpenAI SDK exposing exactly three operations: `classify()`, `embed()` / `embed_batch()`, `generate_with_tools()`
+- Created `api/app/providers/__init__.py` re-exporting the public API and `ProviderError`
+- Created `api/tests/test_openai_provider.py` with both SDK-level mocked tests and HTTP-level transport tests
+
+### Key decisions
+- Module-level `client = OpenAI(api_key=settings.openai_api_key)` singleton — avoids re-creating the client per call while keeping the module importable (settings are resolved at startup, not at import time of the module itself)
+- `generate_with_tools()` uses the Responses API `previous_response_id` chaining for multi-turn tool loops rather than building a messages array manually — the API handles context accumulation server-side
+- `_execute_tool_executor()` inspects the callable's signature to support both `(name, args)` and `({"name": ..., "arguments": ...})` calling conventions, keeping the pipeline callers flexible
+- HTTP-level tests use a custom `_ReplayTransport(httpx.BaseTransport)` wired via `OpenAI(http_client=...)` — no new test dependencies, and the real SDK serialization/deserialization runs end-to-end
+
+### Key files touched
+- `api/app/providers/openai.py` (new)
+- `api/app/providers/__init__.py` (new)
+- `api/tests/test_openai_provider.py` (new)
+- `api/pyproject.toml` — added `[tool.pytest.ini_options]` with `integration` marker
+
+### Gotchas
+- Live integration tests (`@pytest.mark.integration`) were skipped throughout — the configured OpenAI API key returns 429 `insufficient_quota`. Verified instead via HTTP-level transport tests that exercise the real SDK code path
+- The Responses API uses `text={"format": {...}}` for structured output, not `response_format=` (that's the Chat Completions API). The SDK-level mocks in the first pass bypassed this entirely; the transport-layer tests catch it
+
+### Verified
+- All 8 non-integration tests pass: 2 SDK-level mocked tests + 6 HTTP-level transport tests ✓
+- Request shape verified: `/v1/responses`, correct model, `text.format.type == "json_schema"`, `strict=True` ✓
+- Token usage accumulation across tool-calling rounds verified ✓
+- `previous_response_id` threading between agentic loop turns verified ✓
+- `response.error` failure path raises `ProviderError` ✓
+- Embedding batching at boundary (101 texts → 2 HTTP requests of 100 + 1) verified ✓
+
+---
+

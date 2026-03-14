@@ -153,3 +153,23 @@ This milestone adds the read layer for the evaluation system — the endpoints t
 **How these pieces connect**
 
 The eval data model established here — sets → examples → runs → results — is the schema that Milestone 5's eval runner will write into. If the schemas or queries defined here model the relationships incorrectly, the runner will either fail to insert results or the comparison endpoint will produce nonsense diffs. The `GET /prompt-versions` endpoint, while simple, is what the eval console UI will use to populate the "which prompt to test against" dropdown — it needs to exist and return stable data before the frontend can build that screen.
+
+---
+
+## Milestone 3A: OpenAI Provider Module
+
+**What we built and why**
+
+This milestone wraps the OpenAI SDK into a single internal module that exposes exactly the three AI operations the system needs: structured classification (`classify`), vector embedding (`embed` / `embed_batch`), and tool-calling generation (`generate_with_tools`). Every AI pipeline in the system — triage, drafting, retrieval — will call this module rather than touching the SDK directly. The goal is to keep all OpenAI-specific knowledge (model names, API shapes, retry logic, cost estimation) in one place so the rest of the codebase can treat AI as a simple function call.
+
+**Key concepts under the hood**
+
+*The agentic tool-calling loop.* `generate_with_tools()` implements a multi-turn pattern: send a request with tools defined, check whether the response contains function calls, execute them locally via `tool_executor`, then send the results back using `previous_response_id` to continue the same conversation. This repeats up to three times (the safety limit) before either returning the final text or raising `ProviderError`. The `previous_response_id` chaining is specific to the Responses API — the server accumulates context between turns so we never have to build a growing messages array ourselves. Without the round limit, a badly-behaved model could call tools indefinitely; without `previous_response_id`, each turn would start from scratch and the model couldn't see what it already retrieved.
+
+*Retry with exponential backoff and non-retryable error discrimination.* `_call_with_retries()` catches `RateLimitError`, `APITimeoutError`, and `APIError`, but not blindly — `_should_retry()` inspects the error before deciding whether to back off or give up immediately. A `RateLimitError` with code `insufficient_quota` means the account has no credits; retrying is pointless and wastes time, so it raises immediately. A transient 429 (rate limiting, not quota) or any 5xx is worth retrying with `0.5 * 2^(attempt-1)` second delays. Without this discrimination, a permanently broken API key would silently burn through all three retry attempts before surfacing the real error.
+
+*HTTP-layer testing as a substitute for live API calls.* The real OpenAI client uses `httpx` internally. By passing a custom `httpx.BaseTransport` via `OpenAI(http_client=httpx.Client(transport=...))`, we can intercept all HTTP traffic and return pre-crafted responses — the full SDK serialization and deserialization runs, so mistakes in the request JSON shape (wrong field name, wrong nesting) or response attribute access (`response.output_text`, `response.usage.input_tokens`) surface as test failures rather than being hidden by mocks that stub the SDK client directly. This is meaningfully different from the SDK-level mocks also in the test file, which bypass the SDK entirely and couldn't have caught, for example, that the Responses API uses `text={"format": {...}}` rather than `response_format=`.
+
+**How these pieces connect**
+
+The provider module is the floor everything in Milestone 3 builds on. The triage pipeline (3B) calls `classify()`, the retrieval pipeline (3C) calls `embed()`, and the drafting pipeline (3D) calls `generate_with_tools()`. If any of those function signatures, return shapes, or error types are wrong here, every downstream pipeline breaks at the same spot. The `estimated_cost_cents` field returned by each function is also what the eval harness (Milestone 5) will use to track the cost of running eval sets — getting the token-to-cost arithmetic right now means eval cost reporting is trustworthy without any further changes.

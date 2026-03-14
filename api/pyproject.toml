@@ -22,5 +22,15 @@ dependencies = [
     "python-multipart>=0.0.12",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+]
+
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: tests that call external services",
+]
