@@ -5,9 +5,10 @@ from psycopg import Connection
 
 from app.auth import CurrentUser, get_current_user
 from app.deps import get_rls_db
+from app.pipelines.retrieval import search_knowledge
 from app.queries import knowledge as q
 from app.schemas.common import PaginatedResponse
-from app.schemas.knowledge import KnowledgeChunk, KnowledgeDocDetail, KnowledgeDocListItem
+from app.schemas.knowledge import KnowledgeChunk, KnowledgeDocDetail, KnowledgeDocListItem, KnowledgeSearchResult
 
 router = APIRouter()
 
@@ -102,6 +103,17 @@ async def upload_document(
         raw_content=raw_content,
     )
     return KnowledgeDocDetail(**doc, chunks=[])
+
+
+@router.get("/search", response_model=list[KnowledgeSearchResult])
+def search_knowledge_endpoint(
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Connection, Depends(get_rls_db)],
+    q: str = Query(..., alias="q"),
+    top_k: int = Query(5, ge=1, le=20),
+):
+    results = search_knowledge(conn=db, workspace_id=user.workspace_id, query=q, top_k=top_k)
+    return results
 
 
 @router.delete("/documents/{doc_id}", status_code=status.HTTP_204_NO_CONTENT)

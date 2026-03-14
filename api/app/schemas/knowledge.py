@@ -29,3 +29,12 @@ class KnowledgeDocDetail(KnowledgeDocListItem):
 class KnowledgeDocUpload(BaseModel):
     title: str
     visibility: str  # 'internal' | 'client_visible'
+
+
+class KnowledgeSearchResult(BaseModel):
+    chunk_id: str
+    document_id: str
+    document_title: str
+    content: str
+    similarity: float
+    chunk_index: int

@@ -370,3 +370,35 @@ Appended automatically when COMPLETED is triggered in Claude Code.
 
 ---
 
+## Milestone 3C — Knowledge Retrieval
+**Date:** 2026-03-14
+
+### What changed
+- Created `api/app/pipelines/retrieval.py` — `search_knowledge(conn, workspace_id, query, top_k, visibility_filter)` embeds the query and runs a pgvector cosine similarity search
+- Added `KnowledgeSearchResult` Pydantic model to `api/app/schemas/knowledge.py`
+- Added `GET /knowledge/search?q=<query>&top_k=5` endpoint to `api/app/routers/knowledge.py`
+- Created `api/test_retrieval.py` — dev-only script that bypasses the embed call with a random vector (useful when OpenAI quota is exhausted, valid since seed embeddings are random anyway)
+
+### Key decisions
+- `workspace_id` passed explicitly in the WHERE clause as belt-and-suspenders alongside RLS — pgvector index scans may not trigger RLS row filtering in all query plans
+- Vector formatted as a string literal `[x,y,z,...]` and cast with `::vector` — psycopg 3 has no native pgvector type adapter; string casting is the standard workaround
+- Optional `visibility_filter` parameter added to the function signature for use by the drafting pipeline, even though the search endpoint doesn't expose it directly
+- The query vector is passed twice: once in the SELECT for the similarity score (`1 - (embedding <=> %s)`) and once in the ORDER BY for the sort
+
+### Key files
+- `api/app/pipelines/retrieval.py` — `search_knowledge()` function
+- `api/app/schemas/knowledge.py` — added `KnowledgeSearchResult`
+- `api/app/routers/knowledge.py` — added `GET /knowledge/search` endpoint
+- `api/test_retrieval.py` — random-vector test script (dev only)
+
+### Gotchas
+- OpenAI account quota was exhausted (`insufficient_quota`) — the embed call fails before the SQL even runs. Worked around with a direct DB test script using a random vector, which is equivalent since seed embeddings are also random.
+- Similarity scores with random seed embeddings are low (~0.02–0.09) and effectively random — expected; will improve after 3E re-embeds with real OpenAI vectors
+
+### Verified
+- `test_retrieval.py` returns 5 results with chunk content, document titles, similarity scores, and visibility field ✓
+- `internal` docs appear in the direct DB query (no RLS) — confirmed RLS filtering is the correct layer for client visibility ✓
+- `top_k` parameter works correctly (tested with 5 and 10) ✓
+
+---
+

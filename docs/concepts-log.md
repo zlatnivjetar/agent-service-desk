@@ -193,3 +193,23 @@ This milestone is the first AI workflow in the system — it takes an incoming s
 **How these pieces connect**
 
 This pipeline is the first real consumer of the provider module from 3A — it calls `classify()` and depends on the return shape (`result`, `latency_ms`, `token_usage`, `estimated_cost_cents`) being stable and correct. The `prompt_version_id` stored on every prediction is the foreign key the eval harness (Milestone 5) uses to isolate which predictions came from which prompt when computing accuracy comparisons. If the wrong `prompt_version_id` were stored here — or the prediction shape were missing fields — the eval runner would either fail to insert results or produce comparisons that mix predictions from different prompts, making the metrics meaningless.
+
+---
+
+## Milestone 3C: Knowledge Retrieval
+
+**What we built and why**
+
+This milestone adds the retrieval half of RAG (Retrieval-Augmented Generation): given a natural language query, find the most semantically relevant chunks of documentation from the knowledge base. It sits between the embeddings capability in the provider module and the drafting pipeline in 3D, which will call this function as a tool to gather evidence before writing a reply. Without retrieval, the drafting pipeline would have to hallucinate answers from nothing; with it, the model can ground its response in real, citable documentation.
+
+**Key concepts under the hood**
+
+*Cosine similarity search with pgvector.* When you embed two pieces of text, semantically similar content produces vectors that point in roughly the same direction in high-dimensional space. Cosine distance (`<=>` in pgvector) measures the angle between two vectors — 0 means identical direction (highly similar), 1 means perpendicular (unrelated). By embedding the query and sorting chunks by `embedding <=> query_vector`, we get the chunks whose meaning is closest to what the user asked — not just chunks that share keywords. This is fundamentally different from a `LIKE '%billing%'` search, which would miss a chunk that says "subscription cancellation refund" if the query says "how do I get my money back".
+
+*Belt-and-suspenders workspace filtering.* The `WHERE kd.workspace_id = %s` clause in the query exists even though RLS already limits the connection to the current workspace. The reason is defence in depth: pgvector's index scans (IVFFLAT, HNSW) pre-filter candidates before the planner applies row-level policies, and in some query plans RLS predicates can be applied after the top-k candidates are already selected rather than before. Passing `workspace_id` explicitly in the WHERE clause forces the planner to scope the search correctly regardless of how it chooses to apply RLS. Without it, a query might return chunks from another workspace that happened to score highly, with RLS only filtering them out later — or not at all if the planner chose a plan that evaluated similarity first.
+
+*Vector as a string literal cast to the `vector` type.* psycopg 3 has no native type adapter for pgvector — it doesn't know how to turn a Python `list[float]` into a `vector` column value. The solution is to format the list as a string (`[0.1, 0.2, ...]`) and append `::vector` to cast it inside SQL. This is the standard workaround for databases with custom types that the driver doesn't natively support. The alternative — installing `pgvector-python` — would add a dependency purely to handle this formatting step; the string cast is equivalent and keeps the dependency list lean. The vector appears twice in the query (once in the SELECT for the similarity score, once in the ORDER BY for sorting) so the string is parameterized as `%s` in both positions.
+
+**How these pieces connect**
+
+The retrieval pipeline is what makes the drafting pipeline in 3D grounded rather than generative. When OpenAI calls the `search_knowledge` tool during draft generation, the tool executor calls `search_knowledge()` from this pipeline, formats the returned chunks as a text block, and sends them back to the model. If retrieval returns wrong-workspace chunks (a workspace isolation bug) or empty results (a visibility filter misconfiguration), the drafted reply either cites someone else's documentation or is ungrounded and gets `send_ready = false`. The similarity scores are currently meaningless because seed embeddings are random — that's expected and known. After Milestone 3E re-embeds the knowledge base with real OpenAI vectors, the same query and the same code will start returning semantically relevant results without any changes here.
