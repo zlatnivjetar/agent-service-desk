@@ -173,3 +173,23 @@ This milestone wraps the OpenAI SDK into a single internal module that exposes e
 **How these pieces connect**
 
 The provider module is the floor everything in Milestone 3 builds on. The triage pipeline (3B) calls `classify()`, the retrieval pipeline (3C) calls `embed()`, and the drafting pipeline (3D) calls `generate_with_tools()`. If any of those function signatures, return shapes, or error types are wrong here, every downstream pipeline breaks at the same spot. The `estimated_cost_cents` field returned by each function is also what the eval harness (Milestone 5) will use to track the cost of running eval sets — getting the token-to-cost arithmetic right now means eval cost reporting is trustworthy without any further changes.
+
+---
+
+## Milestone 3B: Triage Pipeline
+
+**What we built and why**
+
+This milestone is the first AI workflow in the system — it takes an incoming support ticket and classifies it: category, urgency, recommended team, escalation flag, and confidence score. It sits between the provider module (which handles raw OpenAI calls) and the human review layer (which decides what to do with AI output). The pipeline's central design constraint is that predictions are stored separately and never automatically applied — this separation is what makes the eval harness in Milestone 5 possible.
+
+**Key concepts under the hood**
+
+*Predictions stored separately from ticket fields.* The model's output goes into a dedicated `ticket_predictions` table, not back onto `ticket.category` or `ticket.priority`. This separation is the architectural decision that makes accuracy measurement meaningful: you need both what the model predicted and what the agent ultimately chose to exist as independent records. If predictions overwrote ticket fields, you'd destroy the ground truth needed to measure whether the model is improving across prompt versions. It also means triage can be run multiple times on the same ticket without corrupting ticket state — each call appends a new row.
+
+*Prompt content loaded from the database at runtime.* The triage system prompt is fetched from `prompt_versions` on every call (filtered for `type='triage' AND is_active=TRUE`), rather than being hardcoded in the pipeline. This matters because the eval harness needs to compare predictions produced by different prompt versions — if the prompt were baked into code, evaluating v1 vs v2 would require two separate deployments. With prompts in the database, a team lead can mark a new version active, run triage, and immediately have a fresh set of predictions to compare. The `prompt_version_id` stored on every prediction row is the link that makes that comparison queryable.
+
+*Structured output as a reliability contract.* The classification call passes a JSON schema (`TRIAGE_RESPONSE_SCHEMA`) that constrains the model to return a specific shape with valid enum values for category, urgency, and team. This isn't just a parsing convenience — it's a guarantee that the model's output can be written directly to the database. Without it, the model might return a free-text response like "This looks like a billing issue" that can't be stored in the `predicted_category` column. The schema also enforces the enum values, so a response with `"urgency": "very urgent"` is rejected by the API before it reaches the application, rather than silently storing an invalid value.
+
+**How these pieces connect**
+
+This pipeline is the first real consumer of the provider module from 3A — it calls `classify()` and depends on the return shape (`result`, `latency_ms`, `token_usage`, `estimated_cost_cents`) being stable and correct. The `prompt_version_id` stored on every prediction is the foreign key the eval harness (Milestone 5) uses to isolate which predictions came from which prompt when computing accuracy comparisons. If the wrong `prompt_version_id` were stored here — or the prediction shape were missing fields — the eval runner would either fail to insert results or produce comparisons that mix predictions from different prompts, making the metrics meaningless.

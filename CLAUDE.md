@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 3B: Triage Pipeline**
+**→ Milestone 3C: Knowledge Retrieval**
 
 Full implementation plan: `docs/implementation-plan.md`
 When instructed to "implement current milestone", read the matching sub-milestone from that file.

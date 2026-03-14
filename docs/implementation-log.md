@@ -340,3 +340,33 @@ Appended automatically when COMPLETED is triggered in Claude Code.
 
 ---
 
+## Milestone 3B — Triage Pipeline
+**Date:** 2026-03-14
+
+### What changed
+- Created `api/app/pipelines/triage.py` — `run_triage(conn, ticket_id)` orchestrates the full classification flow
+- Added two query functions to `api/app/queries/tickets.py`: `get_ticket_triage_context()` (subject + first customer message) and `get_active_prompt_version()` (loads active prompt by type)
+- Extended `insert_ticket_prediction()` in `queries/tickets.py` to store all prediction fields including `latency_ms`, `token_usage` (JSONB), and `estimated_cost_cents`
+- Added `POST /tickets/{ticket_id}/triage` to `api/app/routers/tickets.py` — calls the pipeline, returns `TicketPredictionRecord`
+- Added `TicketPredictionRecord` schema (extends `TicketPrediction` with `ticket_id`, `prompt_version_id`, and telemetry fields)
+
+### Key decisions
+- Prediction stored in `ticket_predictions` only — never written back to `ticket.category` or `ticket.priority` without agent approval; this is the core separation that makes the eval harness meaningful
+- `get_ticket_triage_context()` falls back to the first message of any type if no customer-typed message exists — defensive against tickets opened without a customer message body
+- Role-gated at the router level (`support_agent` or `team_lead` only) and errors surface as 404, 500, or 502 depending on cause (ticket not found, no active prompt, provider failure)
+- `token_usage` stored via `Jsonb()` wrapper — psycopg 3 can't adapt plain dicts to JSONB with `%s`
+
+### Key files
+- `api/app/pipelines/triage.py` — the pipeline; `TRIAGE_RESPONSE_SCHEMA`, `run_triage()`
+- `api/app/queries/tickets.py` — `get_ticket_triage_context()`, `get_active_prompt_version()`, `insert_ticket_prediction()`
+- `api/app/routers/tickets.py` — `POST /{ticket_id}/triage` endpoint
+- `api/app/schemas/tickets.py` — `TicketPredictionRecord`
+
+### Gotchas
+- None encountered; implementation was clean given the provider module from 3A
+
+### Verified
+- Code review confirms all spec requirements met: correct schema, correct query, correct RLS dependency, predictions append-only, no ticket field overwrite
+
+---
+
