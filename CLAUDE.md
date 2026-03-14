@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 3A: OpenAI Provider Module**
+**→ Milestone 2D: Eval API Endpoints**
 
 Full implementation plan: `docs/implementation-plan.md`
 When instructed to "implement current milestone", read the matching sub-milestone from that file.
@@ -69,8 +69,8 @@ agent-service-desk/
 When I type exactly **COMPLETED**:
 
 1. Update "Current Milestone" at the top of this file to the next sub-milestone
-2. Append a summary to `docs/implementation-log.md`: what changed, key decisions made, key files touched, any gotchas
-3. Append a concepts debrief to `docs/concepts-log.md` (format below)
+2. Append a summary at the bottom `docs/implementation-log.md`: what changed, key decisions made, key files touched, any gotchas
+3. Append a concepts debrief at the bottom of `docs/concepts-log.md` (format below)
 4. Commit with message: `milestone <ID>: <brief description>`
 
 Only the exact standalone input **COMPLETED** triggers this.

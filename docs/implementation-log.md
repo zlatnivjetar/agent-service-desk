@@ -78,41 +78,6 @@ Appended automatically when COMPLETED is triggered in Claude Code.
 
 ---
 
-## Milestone 1D — RLS Middleware in FastAPI
-**Date:** 2026-03-13
-
-### What changed
-- `api/app/deps.py` — added `conn.transaction()` wrapper around RLS setup so `SET LOCAL ROLE` is scoped correctly to the transaction
-- `api/app/routers/debug.py` — three new debug endpoints: `GET /debug/tickets/count`, `GET /debug/messages/count`, `GET /debug/messages/count`, `GET /debug/knowledge/count`
-- `api/app/main.py` — registered debug router
-- `seed/schema.sql` — added `GRANT rls_user TO neondb_owner` so the app's connection user can switch into the restricted role
-- `seed/mint_tokens.py` — helper script to mint JWTs for all three demo users directly from `api/.env.local` (for manual testing without a running Next.js server)
-
-### Key decisions
-- `conn.transaction()` is required for `SET LOCAL` to work — `SET LOCAL ROLE` resets at transaction end, which is exactly what you want for connection pool safety. Without the explicit transaction, psycopg operates in autocommit mode and `SET LOCAL` has no effect.
-- `GRANT rls_user TO neondb_owner` must be run once on Neon — this is the missing link between creating the `rls_user` role (which the schema did) and allowing the app user to switch into it. Added to `schema.sql` so future `db-push` runs include it automatically.
-- Table name is `ticket_messages` (not `messages`) and `knowledge_documents` (not `knowledge_docs`) — verified against schema before writing queries.
-
-### Key files
-- `api/app/deps.py` — `get_rls_db` dependency (now with transaction wrapper)
-- `api/app/routers/debug.py` — RLS verification endpoints
-- `seed/mint_tokens.py` — JWT minting helper for manual testing
-- `seed/schema.sql` — `GRANT rls_user TO neondb_owner` added
-
-### Gotchas
-- `SET LOCAL ROLE rls_user` silently does nothing outside a transaction. The original `deps.py` was missing `conn.transaction()`, so RLS was never actually activating.
-- `GRANT rls_user TO neondb_owner` is not in the original schema — Neon's superuser (`neondb_owner`) cannot `SET ROLE` to a role it isn't a member of. This caused a `permission denied to set role "rls_user"` 500 error on first test.
-- PowerShell: `curl` is `Invoke-WebRequest`; use `curl.exe` for real curl. `export VAR=val` doesn't work; use `$env:VAR = "val"`.
-
-### Verified
-- Agent JWT → `/debug/tickets/count` → `{"count": 337}` (Org #1 only) ✓
-- Agent JWT → `/debug/messages/count` → `{"total": 1715, "internal": 36}` ✓
-- Client JWT → `/debug/messages/count` → `{"total": 1679, "internal": 0}` (RLS strips internal) ✓
-- Agent JWT → `/debug/knowledge/count` → `{"total": 10}` ✓
-- Client JWT → `/debug/knowledge/count` → `{"total": 6}` (non-client-visible docs hidden) ✓
-
----
-
 ## Milestone 1C — Authentication Flow
 **Date:** 2026-03-13
 
@@ -158,6 +123,78 @@ Appended automatically when COMPLETED is triggered in Claude Code.
 - Login at `http://localhost:3000/login` with all 3 demo accounts ✓
 - `POST /api/token` returns signed JWT for each account ✓
 - `GET /auth/me` with JWT returns correct `user_id`, `org_id`, `workspace_id`, `role` for all 3 users ✓
+
+---
+
+## Milestone 1D — RLS Middleware in FastAPI
+**Date:** 2026-03-13
+
+### What changed
+- `api/app/deps.py` — added `conn.transaction()` wrapper around RLS setup so `SET LOCAL ROLE` is scoped correctly to the transaction
+- `api/app/routers/debug.py` — three new debug endpoints: `GET /debug/tickets/count`, `GET /debug/messages/count`, `GET /debug/messages/count`, `GET /debug/knowledge/count`
+- `api/app/main.py` — registered debug router
+- `seed/schema.sql` — added `GRANT rls_user TO neondb_owner` so the app's connection user can switch into the restricted role
+- `seed/mint_tokens.py` — helper script to mint JWTs for all three demo users directly from `api/.env.local` (for manual testing without a running Next.js server)
+
+### Key decisions
+- `conn.transaction()` is required for `SET LOCAL` to work — `SET LOCAL ROLE` resets at transaction end, which is exactly what you want for connection pool safety. Without the explicit transaction, psycopg operates in autocommit mode and `SET LOCAL` has no effect.
+- `GRANT rls_user TO neondb_owner` must be run once on Neon — this is the missing link between creating the `rls_user` role (which the schema did) and allowing the app user to switch into it. Added to `schema.sql` so future `db-push` runs include it automatically.
+- Table name is `ticket_messages` (not `messages`) and `knowledge_documents` (not `knowledge_docs`) — verified against schema before writing queries.
+
+### Key files
+- `api/app/deps.py` — `get_rls_db` dependency (now with transaction wrapper)
+- `api/app/routers/debug.py` — RLS verification endpoints
+- `seed/mint_tokens.py` — JWT minting helper for manual testing
+- `seed/schema.sql` — `GRANT rls_user TO neondb_owner` added
+
+### Gotchas
+- `SET LOCAL ROLE rls_user` silently does nothing outside a transaction. The original `deps.py` was missing `conn.transaction()`, so RLS was never actually activating.
+- `GRANT rls_user TO neondb_owner` is not in the original schema — Neon's superuser (`neondb_owner`) cannot `SET ROLE` to a role it isn't a member of. This caused a `permission denied to set role "rls_user"` 500 error on first test.
+- PowerShell: `curl` is `Invoke-WebRequest`; use `curl.exe` for real curl. `export VAR=val` doesn't work; use `$env:VAR = "val"`.
+
+### Verified
+- Agent JWT → `/debug/tickets/count` → `{"count": 337}` (Org #1 only) ✓
+- Agent JWT → `/debug/messages/count` → `{"total": 1715, "internal": 36}` ✓
+- Client JWT → `/debug/messages/count` → `{"total": 1679, "internal": 0}` (RLS strips internal) ✓
+- Agent JWT → `/debug/knowledge/count` → `{"total": 10}` ✓
+- Client JWT → `/debug/knowledge/count` → `{"total": 6}` (non-client-visible docs hidden) ✓
+
+---
+
+## Milestone 2A — Ticket & Message Endpoints
+**Date:** 2026-03-13
+
+### What changed
+- Created `api/app/schemas/` package with `common.py` (`PaginationParams`, `PaginatedResponse`) and `tickets.py` (8 Pydantic models: `TicketListItem`, `TicketDetail`, `TicketMessage`, `TicketPrediction`, `TicketDraft`, `TicketAssignment`, `TicketUpdate`, `MessageCreate`, `AssignRequest`)
+- Created `api/app/queries/tickets.py` — 7 SQL query functions: `list_tickets`, `get_ticket`, `get_ticket_messages`, `get_latest_prediction`, `get_latest_draft`, `get_ticket_assignments`, `update_ticket`, `insert_message`, `assign_ticket`
+- Created `api/app/routers/tickets.py` — 5 endpoints: `GET /tickets`, `GET /tickets/{id}`, `PATCH /tickets/{id}`, `POST /tickets/{id}/messages`, `POST /tickets/{id}/assign`
+- Updated `api/app/main.py` to register the tickets router at `/tickets`
+- Added `set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]` to justfile for PowerShell compatibility
+
+### Key decisions
+- Sort column and direction are whitelisted (`_ALLOWED_SORT_COLUMNS`, `_ALLOWED_SORT_ORDERS`) before interpolation into SQL — they can't be parameterized as values, so whitelist is the safe pattern
+- `_build_detail()` helper in the router DRYs up the four sub-queries (messages, prediction, draft, assignments) shared by GET detail, PATCH, and POST assign
+- `update_ticket` whitelists field names via `_ALLOWED_UPDATE_FIELDS` before building dynamic SET clause — prevents injection even though values come from Pydantic
+- `assign_ticket` uses `COALESCE(%s::team_name, team)` so passing `None` preserves the existing team assignment rather than nulling it out
+- `dict_row` is set on the pool (from 1A), so all query results are already dicts — no conversion needed at the query layer
+
+### Key files
+- `api/app/schemas/tickets.py` — all request/response shapes for the tickets domain
+- `api/app/queries/tickets.py` — all SQL isolated here; routers never write SQL directly
+- `api/app/routers/tickets.py` — thin route handlers; each is: validate → query → return schema
+
+### Gotchas
+- `just dev-api` fails in PowerShell without `set windows-shell` in the justfile — `just` on Windows looks for `sh` which isn't in the default PowerShell PATH
+- Run uvicorn from inside `api/` not the repo root (the venv is at `api/.venv` and the recipe does `cd api` from the root)
+- Port 8000 was occupied by a previous uvicorn process; killed with `taskkill /PID <pid> /F`
+
+### Verified
+- `GET /tickets` → 337 tickets, 14 pages, correct pagination metadata ✓
+- `GET /tickets/{id}` → full detail with nested messages, prediction, draft, assignments ✓
+- Agent JWT: 6 messages on ticket `14898025`, including 1 `is_internal: true` ✓
+- Client JWT: 5 messages on same ticket (`is_internal: true` filtered by RLS) ✓
+- Client JWT: `confidence: null`, `latest_prediction: null` (RLS blocks `ticket_predictions` for `client_user`) ✓
+- Client JWT: `latest_draft: null` (RLS blocks `draft_generations` for `client_user`) ✓
 
 ---
 
@@ -266,43 +303,6 @@ Appended automatically when COMPLETED is triggered in Claude Code.
 - Agent JWT → `GET /eval/sets` → `{"detail":"Role 'support_agent' cannot access this resource"}` ✓
 - Client JWT → `GET /eval/sets` → `{"detail":"Role 'client_user' cannot access this resource"}` ✓
 - `GET /prompt-versions` → all 4 seed prompt versions ✓
-
----
-
-## Milestone 2A — Ticket & Message Endpoints
-**Date:** 2026-03-13
-
-### What changed
-- Created `api/app/schemas/` package with `common.py` (`PaginationParams`, `PaginatedResponse`) and `tickets.py` (8 Pydantic models: `TicketListItem`, `TicketDetail`, `TicketMessage`, `TicketPrediction`, `TicketDraft`, `TicketAssignment`, `TicketUpdate`, `MessageCreate`, `AssignRequest`)
-- Created `api/app/queries/tickets.py` — 7 SQL query functions: `list_tickets`, `get_ticket`, `get_ticket_messages`, `get_latest_prediction`, `get_latest_draft`, `get_ticket_assignments`, `update_ticket`, `insert_message`, `assign_ticket`
-- Created `api/app/routers/tickets.py` — 5 endpoints: `GET /tickets`, `GET /tickets/{id}`, `PATCH /tickets/{id}`, `POST /tickets/{id}/messages`, `POST /tickets/{id}/assign`
-- Updated `api/app/main.py` to register the tickets router at `/tickets`
-- Added `set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]` to justfile for PowerShell compatibility
-
-### Key decisions
-- Sort column and direction are whitelisted (`_ALLOWED_SORT_COLUMNS`, `_ALLOWED_SORT_ORDERS`) before interpolation into SQL — they can't be parameterized as values, so whitelist is the safe pattern
-- `_build_detail()` helper in the router DRYs up the four sub-queries (messages, prediction, draft, assignments) shared by GET detail, PATCH, and POST assign
-- `update_ticket` whitelists field names via `_ALLOWED_UPDATE_FIELDS` before building dynamic SET clause — prevents injection even though values come from Pydantic
-- `assign_ticket` uses `COALESCE(%s::team_name, team)` so passing `None` preserves the existing team assignment rather than nulling it out
-- `dict_row` is set on the pool (from 1A), so all query results are already dicts — no conversion needed at the query layer
-
-### Key files
-- `api/app/schemas/tickets.py` — all request/response shapes for the tickets domain
-- `api/app/queries/tickets.py` — all SQL isolated here; routers never write SQL directly
-- `api/app/routers/tickets.py` — thin route handlers; each is: validate → query → return schema
-
-### Gotchas
-- `just dev-api` fails in PowerShell without `set windows-shell` in the justfile — `just` on Windows looks for `sh` which isn't in the default PowerShell PATH
-- Run uvicorn from inside `api/` not the repo root (the venv is at `api/.venv` and the recipe does `cd api` from the root)
-- Port 8000 was occupied by a previous uvicorn process; killed with `taskkill /PID <pid> /F`
-
-### Verified
-- `GET /tickets` → 337 tickets, 14 pages, correct pagination metadata ✓
-- `GET /tickets/{id}` → full detail with nested messages, prediction, draft, assignments ✓
-- Agent JWT: 6 messages on ticket `14898025`, including 1 `is_internal: true` ✓
-- Client JWT: 5 messages on same ticket (`is_internal: true` filtered by RLS) ✓
-- Client JWT: `confidence: null`, `latest_prediction: null` (RLS blocks `ticket_predictions` for `client_user`) ✓
-- Client JWT: `latest_draft: null` (RLS blocks `draft_generations` for `client_user`) ✓
 
 ---
 
