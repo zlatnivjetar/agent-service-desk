@@ -402,3 +402,39 @@ Appended automatically when COMPLETED is triggered in Claude Code.
 
 ---
 
+## Milestone 3D — Grounded Drafting Pipeline
+**Date:** 2026-03-14
+
+### What changed
+- Created `api/app/pipelines/drafting.py` — `generate_draft(conn, ticket_id)` runs the full agentic loop: loads ticket context + messages + active draft prompt, calls `generate_with_tools()` with a `search_knowledge` tool, parses the JSON response (with regex fallback for plain text), enforces `send_ready=false` when no evidence is cited, and stores the record
+- Added `insert_draft()` to `api/app/queries/tickets.py` — inserts into `draft_generations`, passes `evidence_chunk_ids` as a list of `uuid.UUID` objects for the `UUID[]` column
+- Added `EvidenceChunk` and `DraftGenerationResponse` schemas to `api/app/schemas/tickets.py`
+- Added `POST /tickets/{ticket_id}/draft` and `POST /tickets/{ticket_id}/redraft` to `api/app/routers/tickets.py` — both require `support_agent` or `team_lead`, both create a new `draft_generations` record (redraft never overwrites)
+- Updated `api/app/pipelines/__init__.py` to export `generate_draft`, `DraftTicketNotFoundError`, `DraftPromptNotConfiguredError`
+- Created `api/test_draft_pipeline.py` — smoke test that stubs `generate_with_tools` and `search_knowledge` but uses the real DB; verifies all 6 checklist items without spending OpenAI credits
+
+### Key decisions
+- `generate_draft()` fetches `workspace_id` from the ticket row itself — no need to pass it from the router; keeps the function signature clean
+- Tool executor accumulates all retrieved chunks in a closure-scoped list; only chunks actually cited in the final body are included in `evidence_chunks` returned to the caller
+- `send_ready` enforcement: if `cited_chunk_ids` is empty after parsing, `send_ready` is forced to `False` regardless of what the model returned — this is a hard invariant, not a suggestion
+- Draft prompt (draft-v2) instructs the model to output `{body, cited_evidence, confidence, unresolved_questions, send_ready}` as JSON; the fallback path extracts chunk UUIDs by regex when the model returns plain text
+- `evidence_chunk_ids` stored as `uuid.UUID[]` — strings must be converted before passing to psycopg for the `UUID[]` column
+
+### Key files
+- `api/app/pipelines/drafting.py` — the pipeline; `_SEARCH_KNOWLEDGE_TOOL`, `generate_draft()`
+- `api/app/queries/tickets.py` — added `insert_draft()`
+- `api/app/schemas/tickets.py` — added `EvidenceChunk`, `DraftGenerationResponse`
+- `api/app/routers/tickets.py` — `POST /{ticket_id}/draft`, `POST /{ticket_id}/redraft`
+- `api/test_draft_pipeline.py` — offline smoke test
+
+### Gotchas
+- OpenAI Responses API uses a flat tool format (`{"type": "function", "name": "...", "description": "...", "parameters": {...}}`), not the Chat Completions nested format (`{"type": "function", "function": {"name": ...}}`). The wrong format caused a `missing_required_parameter: tools[0].name` 400 error.
+- OpenAI account quota was exhausted — tested via a mock-based smoke test that stubs the provider but hits the real DB, verifying all pipeline logic and SQL without live API calls
+- `app.role` vs `app.user_role`: the RLS `current_user_role()` function reads `app.user_role`; the test initially set `app.role`, causing an `InsufficientPrivilege` error on `draft_generations` insert
+- Pool connections from `p.connection()` are already in transaction state — setting `autocommit = False` raises `ProgrammingError: can't change 'autocommit' now: connection in transaction status INTRANS`
+
+### Verified
+- All 6 smoke test assertions pass: body populated, chunk citation in body, evidence_chunk_ids, evidence_chunks returned, two separate draft IDs on two calls, `send_ready=False` with no evidence ✓
+
+---
+

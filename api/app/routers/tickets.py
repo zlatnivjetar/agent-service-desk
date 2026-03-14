@@ -7,8 +7,11 @@ from psycopg import Connection
 from app.auth import CurrentUser, get_current_user
 from app.deps import get_rls_db
 from app.pipelines import (
+    DraftPromptNotConfiguredError,
+    DraftTicketNotFoundError,
     TriagePromptNotConfiguredError,
     TriageTicketNotFoundError,
+    generate_draft,
     run_triage,
 )
 from app.providers import ProviderError
@@ -16,6 +19,8 @@ from app.queries import tickets as q
 from app.schemas.common import PaginatedResponse
 from app.schemas.tickets import (
     AssignRequest,
+    DraftGenerationResponse,
+    EvidenceChunk,
     MessageCreate,
     TicketAssignment,
     TicketDetail,
@@ -177,3 +182,47 @@ def triage_ticket(
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
 
     return TicketPredictionRecord.model_validate(prediction)
+
+
+def _run_draft(ticket_id: UUID, user: CurrentUser, db: Connection) -> DraftGenerationResponse:
+    require_role(user, ["support_agent", "team_lead"])
+    try:
+        result = generate_draft(db, str(ticket_id))
+    except DraftTicketNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket not found")
+    except DraftPromptNotConfiguredError as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
+    except ProviderError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
+
+    draft_data = dict(result["draft"])
+    draft_data["evidence_chunks"] = [
+        EvidenceChunk.model_validate(c) for c in result["evidence_chunks"]
+    ]
+    return DraftGenerationResponse.model_validate(draft_data)
+
+
+@router.post(
+    "/{ticket_id}/draft",
+    response_model=DraftGenerationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def generate_ticket_draft(
+    ticket_id: UUID,
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Connection, Depends(get_rls_db)],
+):
+    return _run_draft(ticket_id, user, db)
+
+
+@router.post(
+    "/{ticket_id}/redraft",
+    response_model=DraftGenerationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def redraft_ticket(
+    ticket_id: UUID,
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Connection, Depends(get_rls_db)],
+):
+    return _run_draft(ticket_id, user, db)

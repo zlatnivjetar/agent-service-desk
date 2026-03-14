@@ -300,6 +300,47 @@ def insert_message(
     return row
 
 
+def insert_draft(
+    conn: Connection,
+    ticket_id: str,
+    prompt_version_id: str,
+    body: str,
+    evidence_chunk_ids: list,
+    confidence: float,
+    unresolved_questions: list[str],
+    send_ready: bool,
+    latency_ms: Optional[int],
+    token_usage: dict,
+    estimated_cost_cents: Optional[float],
+) -> dict:
+    return conn.execute(
+        """
+        INSERT INTO draft_generations (
+            ticket_id, prompt_version_id, body, evidence_chunk_ids,
+            confidence, unresolved_questions, send_ready, latency_ms,
+            token_usage, estimated_cost_cents, approval_outcome
+        )
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'pending')
+        RETURNING
+            id, ticket_id, prompt_version_id, body, evidence_chunk_ids,
+            confidence, unresolved_questions, send_ready, latency_ms,
+            token_usage, estimated_cost_cents, approval_outcome, created_at
+        """,
+        [
+            ticket_id,
+            prompt_version_id,
+            body,
+            evidence_chunk_ids,
+            confidence,
+            unresolved_questions,
+            send_ready,
+            latency_ms,
+            Jsonb(token_usage),
+            estimated_cost_cents,
+        ],
+    ).fetchone()
+
+
 def assign_ticket(
     conn: Connection,
     ticket_id: str,

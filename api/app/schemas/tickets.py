@@ -50,6 +50,15 @@ class TicketPredictionRecord(TicketPrediction):
     estimated_cost_cents: Optional[float] = None
 
 
+class EvidenceChunk(BaseModel):
+    chunk_id: UUID
+    document_id: UUID
+    document_title: str
+    content: str
+    similarity: float
+    chunk_index: int
+
+
 class TicketDraft(BaseModel):
     id: UUID
     body: str
@@ -59,6 +68,23 @@ class TicketDraft(BaseModel):
     send_ready: bool
     approval_outcome: Optional[str] = None
     created_at: datetime
+
+
+class DraftGenerationResponse(BaseModel):
+    id: UUID
+    ticket_id: UUID
+    prompt_version_id: UUID
+    body: str
+    evidence_chunk_ids: list[UUID]
+    confidence: float
+    unresolved_questions: Optional[list[str]] = None
+    send_ready: bool
+    approval_outcome: Optional[str] = None
+    latency_ms: Optional[int] = None
+    token_usage: Optional[dict] = None
+    estimated_cost_cents: Optional[float] = None
+    created_at: datetime
+    evidence_chunks: list[EvidenceChunk] = []
 
 
 class TicketAssignment(BaseModel):
