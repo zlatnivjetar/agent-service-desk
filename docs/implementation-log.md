@@ -233,6 +233,42 @@ Appended automatically when COMPLETED is triggered in Claude Code.
 
 ---
 
+## Milestone 2D — Eval API Endpoints
+**Date:** 2026-03-14
+
+### What changed
+- Created `api/app/schemas/evals.py` — 9 Pydantic models: `EvalExample`, `EvalSetListItem`, `EvalSetDetail`, `EvalResult`, `EvalRunListItem`, `EvalRunDetail`, `EvalRunCreate`, `MetricDiff`, `EvalComparison`, `PromptVersion`
+- Created `api/app/queries/evals.py` — SQL functions for all eval and prompt-version queries
+- Created `api/app/routers/evals.py` — 7 endpoints under `/eval/*`
+- Created `api/app/routers/prompts.py` — `GET /prompt-versions`
+- Updated `api/app/main.py` to register both new routers
+
+### Key decisions
+- `/eval/runs/compare` registered before `/eval/runs/{run_id}` — FastAPI matches routes in order; if `{run_id}` came first, the string "compare" would be parsed as a UUID and fail
+- `POST /eval/runs` creates the record and immediately fetches the joined row (with `eval_set_name`, `prompt_version_name`) so the response matches `EvalRunListItem` — the INSERT RETURNING clause doesn't have the join data
+- All eval endpoints use double-layer access control: RLS policies block non-team_lead roles at the DB level, `require_role()` returns a 403 at the application level before any query runs
+- Prompt versions endpoint uses `get_rls_db` (for connection hygiene) but no role check — prompt versions are shared reference data, not tenant-scoped
+
+### Key files
+- `api/app/schemas/evals.py` — all request/response shapes
+- `api/app/queries/evals.py` — all SQL for eval domain + prompt versions
+- `api/app/routers/evals.py` — 7 eval endpoints
+- `api/app/routers/prompts.py` — prompt versions list
+
+### Gotchas
+- PowerShell mangles `{}` in curl `-d` arguments even inside single-quoted strings; workaround is writing body to a file and using `-d @body.json`
+
+### Verified
+- `GET /eval/sets` → 3 sets with correct example counts ✓
+- `GET /eval/sets/{id}` → full example list (60 examples for Classification Accuracy) ✓
+- `POST /eval/runs` → creates run with `status=pending`, `total_examples=60` ✓
+- `GET /eval/runs/compare?run_a_id=X&run_b_id=X` → correct comparison structure, `metric_diff` with null values (no results yet) ✓
+- Agent JWT → `GET /eval/sets` → `{"detail":"Role 'support_agent' cannot access this resource"}` ✓
+- Client JWT → `GET /eval/sets` → `{"detail":"Role 'client_user' cannot access this resource"}` ✓
+- `GET /prompt-versions` → all 4 seed prompt versions ✓
+
+---
+
 ## Milestone 2A — Ticket & Message Endpoints
 **Date:** 2026-03-13
 

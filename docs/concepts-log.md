@@ -116,6 +116,26 @@ The `knowledge_documents` and `knowledge_chunks` tables set up in 1B are now ful
 
 ---
 
+## Milestone 2D: Eval API Endpoints
+
+**What we built and why**
+
+This milestone adds the read layer for the evaluation system — the endpoints the team lead console will use to browse eval sets, inspect examples, create eval runs, and compare two runs side-by-side. The actual model execution that fills in results comes in Milestone 5; what we're building now is the scaffolding that holds those results and exposes them through a stable API. It's also the first part of the system that's genuinely team_lead-only — eval data has no relevance to agents or clients.
+
+**Key concepts under the hood**
+
+*Route ordering for static vs. dynamic segments.* FastAPI matches routes in the order they're registered. `GET /eval/runs/compare` and `GET /eval/runs/{run_id}` both start with `/eval/runs/` — if `{run_id}` is registered first, FastAPI tries to parse the string `"compare"` as a UUID, fails, and returns a 422 instead of matching the compare route. The fix is simply registering `/runs/compare` before `/runs/{run_id}` in the router file. This is a general FastAPI rule: any static path segment that conflicts with a dynamic one must be declared first.
+
+*Two-layer access control: RLS + application check.* The eval RLS policies (`eval_set_access`, `eval_run_access`, etc.) block non-`team_lead` sessions at the database level — a `support_agent` querying `eval_sets` gets zero rows back, not an error. But zero rows is the wrong HTTP response for an unauthorized action; it looks like the data doesn't exist rather than being off-limits. The `require_role()` check at the top of each route handler fires before any query runs and returns a 403 with a clear message. The two layers serve different purposes: RLS is the safety net, the application check gives correct semantics.
+
+*POST then SELECT for join-enriched responses.* `POST /eval/runs` inserts a row and needs to return `EvalRunListItem`, which includes `eval_set_name` and `prompt_version_name` from joined tables. `INSERT ... RETURNING` only returns columns from the inserted row — it can't follow foreign keys. Rather than duplicating the join in the INSERT, we insert, get back the new `id` from RETURNING, then immediately call `get_eval_run()` which runs the full SELECT with the joins. This keeps the insert SQL clean and reuses the same read query that all other run-fetching paths use.
+
+**How these pieces connect**
+
+The eval data model established here — sets → examples → runs → results — is the schema that Milestone 5's eval runner will write into. If the schemas or queries defined here model the relationships incorrectly, the runner will either fail to insert results or the comparison endpoint will produce nonsense diffs. The `GET /prompt-versions` endpoint, while simple, is what the eval console UI will use to populate the "which prompt to test against" dropdown — it needs to exist and return stable data before the frontend can build that screen.
+
+---
+
 ## Milestone 2C: Review Queue & Approval Endpoints
 
 **What we built and why**
