@@ -1,0 +1,114 @@
+from typing import Annotated, Optional
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from psycopg import Connection
+
+from app.auth import CurrentUser, get_current_user
+from app.deps import get_rls_db
+from app.queries import knowledge as q
+from app.schemas.common import PaginatedResponse
+from app.schemas.knowledge import KnowledgeChunk, KnowledgeDocDetail, KnowledgeDocListItem
+
+router = APIRouter()
+
+_ALLOWED_EXTENSIONS = {".pdf", ".md", ".txt"}
+_ALLOWED_CONTENT_TYPES = {
+    "application/pdf",
+    "text/markdown",
+    "text/plain",
+    "text/x-markdown",
+}
+
+
+@router.get("/documents", response_model=PaginatedResponse)
+def list_documents(
+    db: Annotated[Connection, Depends(get_rls_db)],
+    page: int = Query(1, ge=1),
+    per_page: int = Query(25, ge=1, le=100),
+    status: Optional[str] = Query(None),
+    visibility: Optional[str] = Query(None),
+):
+    total, rows = q.list_documents(
+        conn=db,
+        page=page,
+        per_page=per_page,
+        status=status,
+        visibility=visibility,
+    )
+    items = [KnowledgeDocListItem.model_validate(row) for row in rows]
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        page=page,
+        per_page=per_page,
+        total_pages=(total + per_page - 1) // per_page,
+    )
+
+
+@router.get("/documents/{doc_id}", response_model=KnowledgeDocDetail)
+def get_document(
+    doc_id: str,
+    db: Annotated[Connection, Depends(get_rls_db)],
+):
+    doc = q.get_document(db, doc_id)
+    if doc is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    chunks = q.get_chunks(db, doc_id)
+    return KnowledgeDocDetail(
+        **doc,
+        chunks=[KnowledgeChunk.model_validate(c) for c in chunks],
+    )
+
+
+@router.post(
+    "/documents",
+    response_model=KnowledgeDocDetail,
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_document(
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Connection, Depends(get_rls_db)],
+    title: str = Form(...),
+    visibility: str = Form(...),
+    file: UploadFile = File(...),
+):
+    if visibility not in ("internal", "client_visible"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="visibility must be 'internal' or 'client_visible'",
+        )
+
+    filename = file.filename or ""
+    suffix = "." + filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if suffix not in _ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File type '{suffix}' not supported. Allowed: .pdf, .md, .txt",
+        )
+
+    raw_bytes = await file.read()
+    try:
+        raw_content = raw_bytes.decode("utf-8", errors="replace")
+    except Exception:
+        raw_content = None
+
+    doc = q.insert_document(
+        conn=db,
+        workspace_id=user.workspace_id,
+        title=title,
+        visibility=visibility,
+        source_filename=filename or None,
+        content_type=file.content_type,
+        raw_content=raw_content,
+    )
+    return KnowledgeDocDetail(**doc, chunks=[])
+
+
+@router.delete("/documents/{doc_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_document(
+    doc_id: str,
+    db: Annotated[Connection, Depends(get_rls_db)],
+):
+    found = q.delete_document(db, doc_id)
+    if not found:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")

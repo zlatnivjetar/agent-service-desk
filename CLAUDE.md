@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 2B: Knowledge Document Endpoints**
+**→ Milestone 2C: Review Queue & Approval Endpoints**
 
 Full implementation plan: `docs/implementation-plan.md`
 When instructed to "implement current milestone", read the matching sub-milestone from that file.

@@ -72,6 +72,28 @@ Every route handler written from here on uses `Depends(get_rls_db)` instead of `
 
 ---
 
+## Milestone 2B: Knowledge Document Endpoints
+
+**What we built and why**
+
+This milestone exposes the knowledge base through the API — the documents and chunks that the RAG drafting pipeline will search over in Milestone 3. For now the endpoints are deliberately minimal: list, detail, upload (creates a record at `status=pending`), and delete. The ingestion pipeline that actually parses, chunks, and embeds uploaded files comes later. This gives the system a stable API contract for the knowledge domain before the AI layer is wired in.
+
+**Key concepts under the hood**
+
+*RLS handling visibility without application code.* The `knowledge_documents` table has a `visibility` column (`internal` or `client_visible`), and the RLS policy in the schema filters rows based on `current_user_role()`. A `client_user` querying the list endpoint gets only `client_visible` docs — not because the router adds a WHERE clause, but because Postgres strips the other rows before they reach the application. This is validated directly: the agent sees 10 docs, the client sees 6. If someone accidentally removed the RLS policy, clients would see internal docs (internal knowledge, workarounds, escalation procedures) that are supposed to be agent-only.
+
+*`Jsonb()` wrapper for psycopg 3 JSONB columns.* When inserting a Python dict into a JSONB column, psycopg 3 can't automatically adapt a plain `dict` type using a `%s` placeholder. You must wrap it with `psycopg.types.json.Jsonb(my_dict)`. This is different from psycopg 2, which would silently serialize the dict. Without the wrapper you get `ProgrammingError: cannot adapt type 'dict'` at runtime. We use this to store the raw uploaded file content in `metadata.raw_content` as a staging area for the ingestion pipeline.
+
+*Connection pool health checks for Neon.* Neon's serverless Postgres aggressively closes idle connections. A `ConnectionPool` without a `check` function hands out connections from the pool without testing them first — if Neon dropped the connection while it was idle, the first query on that connection fails with `SSL connection has been closed unexpectedly`. Adding `check=_check_connection` (which runs `SELECT 1`) tells the pool to verify each connection before use and discard broken ones. The overhead is one trivial query per checkout, which is negligible compared to the alternative of random 500s.
+
+*Upload stored as pending, not immediately processed.* The `POST /knowledge/documents` endpoint inserts a row with `status=pending` and stores the raw file content in JSONB metadata. It does not parse, chunk, or embed. This separation is intentional: ingestion is a slow, expensive, async operation (embedding an entire document costs API calls and time), while the upload endpoint must return quickly. The `status` field (`pending → processing → indexed`) tracks the document through its lifecycle, and the frontend can poll or subscribe to see when a doc becomes searchable.
+
+**How these pieces connect**
+
+The `knowledge_documents` and `knowledge_chunks` tables set up in 1B are now fully accessible through the API. When the ingestion pipeline is built in Milestone 3, it will read `status=pending` docs from the DB, chunk and embed them, write to `knowledge_chunks`, and update `status=indexed`. The retrieval pipeline (also Milestone 3) will query `knowledge_chunks.embedding` via pgvector to find relevant chunks for a given ticket — that's the data the `GET /knowledge/documents/{doc_id}` detail endpoint already exposes (minus the embedding vectors, which are never returned to clients). Getting the schema shapes right here means the RAG pipeline can be built against real, stable data.
+
+---
+
 ## Milestone 2A: Ticket & Message Endpoints
 
 **What we built and why**

@@ -1,10 +1,10 @@
-set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
+set windows-shell := ["cmd.exe", "/c"]
 
 dev-web:
     cd web && npm run dev
 
 dev-api:
-    cd api && .venv/Scripts/uvicorn app.main:app --reload --port 8000
+    cd api && .\.venv\Scripts\uvicorn app.main:app --reload --port 8000
 
 db-push:
     cd seed && python push_schema.py

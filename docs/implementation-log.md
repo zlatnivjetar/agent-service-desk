@@ -161,6 +161,44 @@ Appended automatically when COMPLETED is triggered in Claude Code.
 
 ---
 
+## Milestone 2B — Knowledge Document Endpoints
+**Date:** 2026-03-14
+
+### What changed
+- Created `api/app/schemas/knowledge.py` — 3 Pydantic models: `KnowledgeChunk`, `KnowledgeDocListItem`, `KnowledgeDocDetail`
+- Created `api/app/queries/knowledge.py` — 5 SQL query functions: `list_documents`, `get_document`, `get_chunks`, `insert_document`, `delete_document`
+- Created `api/app/routers/knowledge.py` — 4 endpoints: `GET /knowledge/documents`, `GET /knowledge/documents/{doc_id}`, `POST /knowledge/documents`, `DELETE /knowledge/documents/{doc_id}`
+- Updated `api/app/main.py` to register the knowledge router at `/knowledge`
+- Fixed `api/app/db.py`: added `check=_check_connection` to the pool to handle Neon dropping idle connections; dropped `min_size` from 2 to 1
+- Fixed justfile: changed `windows-shell` from `powershell.exe` to `cmd.exe /c` (PowerShell 5 doesn't support `&&`); fixed `dev-api` path to use `.\\.venv\\Scripts\\uvicorn`
+
+### Key decisions
+- Raw file content stored in `metadata.raw_content` JSONB — actual chunking/embedding pipeline is Milestone 3; this endpoint just creates the record at `status=pending`
+- File type validated by extension (`.pdf`, `.md`, `.txt`) not Content-Type, since curl sends `application/octet-stream` for `.md` files without an explicit type override
+- Chunks excluded from list endpoint (only on detail) — embedding vectors never returned (1536-dim float array is too large for API responses)
+- `Jsonb()` wrapper from `psycopg.types.json` required to pass a Python dict as a JSONB parameter — psycopg 3 can't auto-adapt plain dicts with `%s`
+
+### Key files
+- `api/app/schemas/knowledge.py` — request/response shapes for the knowledge domain
+- `api/app/queries/knowledge.py` — all SQL for knowledge docs and chunks
+- `api/app/routers/knowledge.py` — 4 thin route handlers
+- `api/app/db.py` — added `check` function for Neon connection resilience
+
+### Gotchas
+- `psycopg.ProgrammingError: cannot adapt type 'dict'` — psycopg 3 requires `Jsonb(dict)` wrapper, not a bare dict, when inserting into a JSONB column via `%s`
+- Neon drops idle connections; without a `check` function the pool hands out stale connections that fail on first use with `SSL connection has been closed unexpectedly`
+- PowerShell `curl` is `Invoke-WebRequest` — use `curl.exe` for real curl; multiline commands with backtick continuation are fragile, put everything on one line
+
+### Verified
+- Agent JWT → `GET /knowledge/documents` → 10 docs (internal + client_visible) ✓
+- Client JWT → `GET /knowledge/documents` → 6 docs (client_visible only, RLS filtering) ✓
+- Team Lead JWT → `GET /knowledge/documents` → 10 docs ✓
+- `POST /knowledge/documents` with CLAUDE.md → `{"status":"pending","chunks":[]}` ✓
+- `DELETE /knowledge/documents/{id}` → 204 No Content ✓
+- Follow-up GET on deleted doc → 404 Not Found ✓
+
+---
+
 ## Milestone 2A — Ticket & Message Endpoints
 **Date:** 2026-03-13
 
