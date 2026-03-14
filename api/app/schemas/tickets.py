@@ -42,6 +42,14 @@ class TicketPrediction(BaseModel):
     created_at: datetime
 
 
+class TicketPredictionRecord(TicketPrediction):
+    ticket_id: UUID
+    prompt_version_id: UUID
+    latency_ms: Optional[int] = None
+    token_usage: Optional[dict[str, int]] = None
+    estimated_cost_cents: Optional[float] = None
+
+
 class TicketDraft(BaseModel):
     id: UUID
     body: str

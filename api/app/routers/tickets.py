@@ -6,6 +6,12 @@ from psycopg import Connection
 
 from app.auth import CurrentUser, get_current_user
 from app.deps import get_rls_db
+from app.pipelines import (
+    TriagePromptNotConfiguredError,
+    TriageTicketNotFoundError,
+    run_triage,
+)
+from app.providers import ProviderError
 from app.queries import tickets as q
 from app.schemas.common import PaginatedResponse
 from app.schemas.tickets import (
@@ -17,10 +23,19 @@ from app.schemas.tickets import (
     TicketListItem,
     TicketMessage,
     TicketPrediction,
+    TicketPredictionRecord,
     TicketUpdate,
 )
 
 router = APIRouter()
+
+
+def require_role(user: CurrentUser, allowed: list[str]) -> None:
+    if user.role not in allowed:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Role '{user.role}' cannot access this resource",
+        )
 
 
 def _build_detail(ticket: dict, conn: Connection) -> TicketDetail:
@@ -138,3 +153,27 @@ def assign_ticket(
     if ticket is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket not found")
     return _build_detail(dict(ticket), db)
+
+
+@router.post(
+    "/{ticket_id}/triage",
+    response_model=TicketPredictionRecord,
+    status_code=status.HTTP_201_CREATED,
+)
+def triage_ticket(
+    ticket_id: UUID,
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Connection, Depends(get_rls_db)],
+):
+    require_role(user, ["support_agent", "team_lead"])
+
+    try:
+        prediction = run_triage(db, str(ticket_id))
+    except TriageTicketNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket not found")
+    except TriagePromptNotConfiguredError as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
+    except ProviderError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
+
+    return TicketPredictionRecord.model_validate(prediction)

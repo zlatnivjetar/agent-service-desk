@@ -1,6 +1,7 @@
 from typing import Optional
 
 from psycopg import Connection
+from psycopg.types.json import Jsonb
 
 _ALLOWED_SORT_COLUMNS = {"created_at", "updated_at", "priority", "status", "subject"}
 _ALLOWED_SORT_ORDERS = {"asc", "desc"}
@@ -105,12 +106,56 @@ def get_ticket_messages(conn: Connection, ticket_id: str) -> list[dict]:
     ).fetchall()
 
 
+def get_ticket_triage_context(conn: Connection, ticket_id: str) -> Optional[dict]:
+    return conn.execute(
+        """
+        SELECT
+            t.id,
+            t.subject,
+            COALESCE(
+                (
+                    SELECT tm.body
+                    FROM ticket_messages tm
+                    WHERE tm.ticket_id = t.id
+                      AND tm.sender_type = 'customer'
+                      AND tm.is_internal = FALSE
+                    ORDER BY tm.created_at ASC
+                    LIMIT 1
+                ),
+                (
+                    SELECT tm.body
+                    FROM ticket_messages tm
+                    WHERE tm.ticket_id = t.id
+                    ORDER BY tm.created_at ASC
+                    LIMIT 1
+                )
+            ) AS first_message_body
+        FROM tickets t
+        WHERE t.id = %s
+        """,
+        [ticket_id],
+    ).fetchone()
+
+
+def get_active_prompt_version(conn: Connection, prompt_type: str) -> Optional[dict]:
+    return conn.execute(
+        """
+        SELECT id, name, type, content, is_active, created_at, updated_at
+        FROM prompt_versions
+        WHERE type = %s AND is_active = TRUE
+        LIMIT 1
+        """,
+        [prompt_type],
+    ).fetchone()
+
+
 def get_latest_prediction(conn: Connection, ticket_id: str) -> Optional[dict]:
     return conn.execute(
         """
         SELECT
-            id, predicted_category, predicted_priority, predicted_team,
-            escalation_suggested, escalation_reason, confidence, created_at
+            id, ticket_id, prompt_version_id, predicted_category, predicted_priority,
+            predicted_team, escalation_suggested, escalation_reason, confidence,
+            latency_ms, token_usage, estimated_cost_cents, created_at
         FROM ticket_predictions
         WHERE ticket_id = %s
         ORDER BY created_at DESC
@@ -145,6 +190,57 @@ def get_ticket_assignments(conn: Connection, ticket_id: str) -> list[dict]:
         """,
         [ticket_id],
     ).fetchall()
+
+
+def insert_ticket_prediction(
+    conn: Connection,
+    ticket_id: str,
+    prompt_version_id: str,
+    predicted_category: str,
+    predicted_priority: str,
+    predicted_team: str,
+    escalation_suggested: bool,
+    escalation_reason: Optional[str],
+    confidence: float,
+    latency_ms: Optional[int],
+    token_usage: dict,
+    estimated_cost_cents: Optional[float],
+) -> dict:
+    return conn.execute(
+        """
+        INSERT INTO ticket_predictions (
+            ticket_id,
+            prompt_version_id,
+            predicted_category,
+            predicted_priority,
+            predicted_team,
+            escalation_suggested,
+            escalation_reason,
+            confidence,
+            latency_ms,
+            token_usage,
+            estimated_cost_cents
+        )
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        RETURNING
+            id, ticket_id, prompt_version_id, predicted_category, predicted_priority,
+            predicted_team, escalation_suggested, escalation_reason, confidence,
+            latency_ms, token_usage, estimated_cost_cents, created_at
+        """,
+        [
+            ticket_id,
+            prompt_version_id,
+            predicted_category,
+            predicted_priority,
+            predicted_team,
+            escalation_suggested,
+            escalation_reason,
+            confidence,
+            latency_ms,
+            Jsonb(token_usage),
+            estimated_cost_cents,
+        ],
+    ).fetchone()
 
 
 def update_ticket(conn: Connection, ticket_id: str, updates: dict) -> Optional[dict]:
