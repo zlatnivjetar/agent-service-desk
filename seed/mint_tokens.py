@@ -44,6 +44,8 @@ USERS = [
 # ---------------------------------------------------------------------------
 exp = int(time.time()) + 3600  # 1 hour
 
+filter_name = sys.argv[1].lower() if len(sys.argv) > 1 else None
+
 for name, user_id, role in USERS:
     payload = {
         "user_id": user_id,
@@ -53,5 +55,9 @@ for name, user_id, role in USERS:
         "exp": exp,
     }
     token = jwt.encode(payload, secret, algorithm="HS256")
-    print(f"\n# {name} ({role})")
-    print(f"export {name.upper()}_JWT={token}")
+    if filter_name == name:
+        # bare token — suitable for shell variable capture
+        print(token)
+    elif filter_name is None:
+        print(f"\n# {name} ({role})")
+        print(f"export {name.upper()}_JWT={token}")

@@ -72,6 +72,28 @@ Every route handler written from here on uses `Depends(get_rls_db)` instead of `
 
 ---
 
+## Milestone 2A: Ticket & Message Endpoints
+
+**What we built and why**
+
+This milestone is the first real API surface — the endpoints the frontend will call to display the ticket queue, open a ticket detail, update ticket fields, post messages, and reassign tickets. Before this, the system could authenticate users and enforce RLS, but had no data-serving layer. Everything in Milestone 2 follows the same pattern: thin route handlers, Pydantic schemas for shapes, and SQL isolated in query functions. The tickets domain is the largest and most central, so getting the pattern right here means 2B and 2C can follow the same structure cleanly.
+
+**Key concepts under the hood**
+
+*Router → Schema → Query separation.* Each endpoint in `routers/tickets.py` is intentionally thin: it validates the incoming request via Pydantic, calls a function in `queries/tickets.py`, and returns a schema. No SQL lives in the router; no HTTP concepts (status codes, request bodies) leak into the query layer. This separation matters because the query layer is reused across multiple endpoints — `get_ticket()` is called by `GET /tickets/{id}`, `PATCH /tickets/{id}`, and `POST /tickets/{id}/assign`. If the SQL were inline in each route handler, a bug fix would need to be applied in three places.
+
+*Whitelisting sort parameters before SQL interpolation.* Pagination filters like `status=open` are passed as `%s` parameters and are safe. But `ORDER BY t.{sort_by} {sort_order}` cannot be parameterized — Postgres doesn't allow column names or keywords as bind parameters. We solve this by checking `sort_by` against `_ALLOWED_SORT_COLUMNS` (a set of known column names) and `sort_order` against `{"asc", "desc"}` before interpolating them. Without the whitelist, a malicious `sort_by=id; DROP TABLE tickets--` in the query string would be executed as SQL.
+
+*Dynamic UPDATE with a field whitelist.* `PATCH /tickets/{id}` accepts a partial update body — any subset of `{status, priority, assignee_id, category, team}`. The query builds a SET clause dynamically from whichever fields are non-null. The field names come from a Pydantic model (not raw user input), but we still check them against `_ALLOWED_UPDATE_FIELDS` before interpolating into the SET clause. Values are always passed as `%s` parameters. This pattern is the safe way to implement partial updates in SQL without an ORM.
+
+*Aggregating sub-queries into a detail response.* `GET /tickets/{id}` returns a `TicketDetail` that embeds messages, the latest prediction, the latest draft, and assignment history. These live in four separate tables, so we make four separate queries rather than a single large JOIN. JOINs with one-to-many relationships (one ticket, many messages) cause row multiplication that requires deduplication logic; separate queries are simpler, predictable, and easier to read. The `_build_detail()` helper in the router collects all four results and assembles the response, and is reused by the PATCH and assign endpoints which also return `TicketDetail`.
+
+**How these pieces connect**
+
+The RLS enforcement from 1D is invisible here but active on every query — the ticket list is already scoped to the current user's org, and internal messages are already filtered for `client_user` sessions, with no WHERE clauses written in the query functions. The `schemas/` and `queries/` packages established here are the template for 2B (knowledge documents) and 2C (review queue), which add new files to those packages following the exact same structure. When the frontend is built in Milestone 4, it will call these endpoints directly — getting the response shape right now means the frontend can be built against a stable contract.
+
+---
+
 ## Milestone 2B: Knowledge Document Endpoints
 
 **What we built and why**
@@ -94,22 +116,20 @@ The `knowledge_documents` and `knowledge_chunks` tables set up in 1B are now ful
 
 ---
 
-## Milestone 2A: Ticket & Message Endpoints
+## Milestone 2C: Review Queue & Approval Endpoints
 
 **What we built and why**
 
-This milestone is the first real API surface — the endpoints the frontend will call to display the ticket queue, open a ticket detail, update ticket fields, post messages, and reassign tickets. Before this, the system could authenticate users and enforce RLS, but had no data-serving layer. Everything in Milestone 2 follows the same pattern: thin route handlers, Pydantic schemas for shapes, and SQL isolated in query functions. The tickets domain is the largest and most central, so getting the pattern right here means 2B and 2C can follow the same structure cleanly.
+This milestone adds the human-in-the-loop layer: the interface through which support agents review AI-generated drafts and decide whether to approve, edit, reject, or escalate them. Before this, the system could generate and store drafts (via seed data), but there was no way to act on them. The review queue is the operational heart of the product — it's the screen an agent opens every morning to work through pending replies.
 
 **Key concepts under the hood**
 
-*Router → Schema → Query separation.* Each endpoint in `routers/tickets.py` is intentionally thin: it validates the incoming request via Pydantic, calls a function in `queries/tickets.py`, and returns a schema. No SQL lives in the router; no HTTP concepts (status codes, request bodies) leak into the query layer. This separation matters because the query layer is reused across multiple endpoints — `get_ticket()` is called by `GET /tickets/{id}`, `PATCH /tickets/{id}`, and `POST /tickets/{id}/assign`. If the SQL were inline in each route handler, a bug fix would need to be applied in three places.
+*Denormalized `approval_outcome` on `draft_generations`.* The `approval_actions` table is the authoritative record of who did what and when. But the review queue needs to efficiently filter for drafts that haven't been acted on yet — scanning `approval_actions` for every draft on every page load would be expensive. Instead, the schema also stores `approval_outcome` directly on `draft_generations` as a denormalized copy. When `POST /drafts/{id}/review` runs, it writes to both tables: inserts the `approval_actions` row (the audit trail) and updates `draft_generations.approval_outcome` (the fast-query field). Without the denormalized column, the queue query would need a NOT EXISTS subquery across a large table on every request.
 
-*Whitelisting sort parameters before SQL interpolation.* Pagination filters like `status=open` are passed as `%s` parameters and are safe. But `ORDER BY t.{sort_by} {sort_order}` cannot be parameterized — Postgres doesn't allow column names or keywords as bind parameters. We solve this by checking `sort_by` against `_ALLOWED_SORT_COLUMNS` (a set of known column names) and `sort_order` against `{"asc", "desc"}` before interpolating them. Without the whitelist, a malicious `sort_by=id; DROP TABLE tickets--` in the query string would be executed as SQL.
+*Application-level role checks layered on top of RLS.* RLS policies already prevent `client_user` sessions from reading `draft_generations` at the database level — a client querying the review queue would get an empty result set, not a 403. But an empty result set is a confusing response for an unauthorized action. The `require_role()` helper in the router raises a 403 before the query runs, giving the caller a clear signal that the endpoint is off-limits for their role. The two layers serve different purposes: RLS is the safety net that enforces isolation even if application code has a bug; the application check provides the correct HTTP semantics.
 
-*Dynamic UPDATE with a field whitelist.* `PATCH /tickets/{id}` accepts a partial update body — any subset of `{status, priority, assignee_id, category, team}`. The query builds a SET clause dynamically from whichever fields are non-null. The field names come from a Pydantic model (not raw user input), but we still check them against `_ALLOWED_UPDATE_FIELDS` before interpolating into the SET clause. Values are always passed as `%s` parameters. This pattern is the safe way to implement partial updates in SQL without an ORM.
-
-*Aggregating sub-queries into a detail response.* `GET /tickets/{id}` returns a `TicketDetail` that embeds messages, the latest prediction, the latest draft, and assignment history. These live in four separate tables, so we make four separate queries rather than a single large JOIN. JOINs with one-to-many relationships (one ticket, many messages) cause row multiplication that requires deduplication logic; separate queries are simpler, predictable, and easier to read. The `_build_detail()` helper in the router collects all four results and assembles the response, and is reused by the PATCH and assign endpoints which also return `TicketDetail`.
+*Writing a state transition to two tables atomically.* Approving a draft involves three writes: inserting an `approval_actions` row, updating `draft_generations.approval_outcome`, and (for `approved` or `edited_and_approved`) updating `tickets.status` to `pending_customer`. All three happen inside the same psycopg connection, which is already wrapped in a transaction by `get_rls_db`. If the process crashes after the first write but before the third, the database is left in an inconsistent state — a draft marked approved with a ticket still showing its old status. The transaction wrapper means all three writes either commit together or roll back together.
 
 **How these pieces connect**
 
-The RLS enforcement from 1D is invisible here but active on every query — the ticket list is already scoped to the current user's org, and internal messages are already filtered for `client_user` sessions, with no WHERE clauses written in the query functions. The `schemas/` and `queries/` packages established here are the template for 2B (knowledge documents) and 2C (review queue), which add new files to those packages following the exact same structure. When the frontend is built in Milestone 4, it will call these endpoints directly — getting the response shape right now means the frontend can be built against a stable contract.
+The `approval_actions` table written here will be read by the eval harness in Milestone 5 — it's how the system measures whether agent edits to AI drafts correlate with low-confidence scores, which feeds back into prompt improvement. The `ticket.status = 'pending_customer'` transition written here is what the frontend's ticket queue will use to surface "ready to send" tickets in Milestone 4. If the status transition were missing or written to the wrong value, the ticket would stay stuck in its previous state and the agent would have no way to know a reply was ready.

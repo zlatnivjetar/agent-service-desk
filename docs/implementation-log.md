@@ -199,6 +199,40 @@ Appended automatically when COMPLETED is triggered in Claude Code.
 
 ---
 
+## Milestone 2C — Review Queue & Approval Endpoints
+**Date:** 2026-03-14
+
+### What changed
+- Created `api/app/schemas/drafts.py` — 3 Pydantic models: `DraftQueueItem`, `ApprovalRequest` (with `model_validator` enforcing `edited_body` for `edited_and_approved`), `ApprovalResponse`
+- Created `api/app/queries/drafts.py` — 5 SQL query functions: `list_pending_drafts`, `get_draft`, `insert_approval_action`, `update_draft_outcome`, `update_ticket_status`
+- Created `api/app/routers/drafts.py` — 2 endpoints: `GET /drafts/review-queue`, `POST /drafts/{draft_id}/review`; includes `require_role()` helper
+- Updated `api/app/main.py` to register the drafts router at `/drafts`
+- Fixed `seed/mint_tokens.py` to accept a role argument and print a bare token (no `export` prefix, no comment) — previously the full output was being captured into the PowerShell variable instead of just the token
+
+### Key decisions
+- Review queue filters `approval_outcome = 'pending' OR approval_outcome IS NULL` — seed data uses NULL for un-reviewed drafts, not the string `'pending'`
+- `require_role()` is a plain function (not a FastAPI dependency) — called explicitly at the top of each route that needs it, which keeps the 403 logic visible in the handler rather than hidden in a decorator
+- Approving or `edited_and_approved` also updates `ticket.status` to `pending_customer` — the draft router is the only place this transition happens, so the state change is co-located with the action that triggers it
+- Body truncated to 200 chars in SQL (`LEFT(dg.body, 200)`) rather than in Python — avoids loading full draft bodies for a queue that could have hundreds of items
+
+### Key files
+- `api/app/schemas/drafts.py` — request/response shapes including Pydantic validator for `edited_and_approved`
+- `api/app/queries/drafts.py` — all SQL for the review queue and approval actions
+- `api/app/routers/drafts.py` — thin route handlers with explicit role checks
+- `seed/mint_tokens.py` — now accepts a role name argument for bare-token output
+
+### Gotchas
+- Seed data stores un-reviewed drafts as `approval_outcome IS NULL`, not `'pending'` — the queue must filter on both
+- `mint_tokens.py` printed `export AGENT_JWT=<token>` with a comment header, so PowerShell captured the full multi-line string instead of just the JWT; fixed by printing just the raw token when a role argument is passed
+
+### Verified
+- `GET /drafts/review-queue` → 59 pending drafts, paginated (FIFO order) ✓
+- `POST /drafts/{id}/review` with `action: "approved"` → `approval_actions` row created, `approval_outcome` updated ✓
+- `POST /drafts/{id}/review` with `action: "rejected", reason: "Off-brand tone"` → reason persisted ✓
+- Client JWT → `GET /drafts/review-queue` → `{"detail":"Role 'client_user' cannot access this resource"}` ✓
+
+---
+
 ## Milestone 2A — Ticket & Message Endpoints
 **Date:** 2026-03-13
 
