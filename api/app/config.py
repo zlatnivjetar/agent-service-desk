@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expiry_minutes: int = 60
     cors_origins: list[str] = ["http://localhost:3000"]
+    mock_ai: bool = False  # Set MOCK_AI=1 to bypass OpenAI calls for local testing
 
     model_config = {"env_file": Path(__file__).resolve().parents[1] / ".env.local"}
 

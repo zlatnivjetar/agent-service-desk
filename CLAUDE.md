@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 3E: Knowledge Ingestion Pipeline**
+**→ Milestone 4: Frontend Surfaces**
 
 Full implementation plan: `docs/implementation-plan.md`
 When instructed to "implement current milestone", read the matching sub-milestone from that file.

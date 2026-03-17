@@ -12,6 +12,7 @@ from __future__ import annotations
 import inspect
 import json
 import logging
+import re
 import time
 from collections.abc import Callable
 from typing import Any
@@ -49,6 +50,8 @@ class ProviderError(RuntimeError):
 
 
 def classify(system_prompt: str, user_input: str, response_schema: dict[str, Any]) -> dict[str, Any]:
+    if settings.mock_ai:
+        return _mock_classify()
     started_at = time.perf_counter()
     response = _call_with_retries(
         operation="classify",
@@ -100,6 +103,8 @@ def embed(text: str) -> list[float]:
 def embed_batch(texts: list[str]) -> list[list[float]]:
     if not texts:
         return []
+    if settings.mock_ai:
+        return _mock_embed_batch(texts)
 
     vectors: list[list[float]] = []
     for index in range(0, len(texts), MAX_EMBED_BATCH_SIZE):
@@ -134,6 +139,8 @@ def generate_with_tools(
     tools: list[dict[str, Any]],
     tool_executor: Callable[..., Any],
 ) -> dict[str, Any]:
+    if settings.mock_ai:
+        return _mock_generate_with_tools(tool_executor)
     started_at = time.perf_counter()
     usage_totals = _empty_usage()
     tool_calls_made: list[dict[str, Any]] = []
@@ -211,6 +218,77 @@ def generate_with_tools(
         )
 
     raise ProviderError("OpenAI generation did not complete")
+
+
+_CHUNK_ID_RE = re.compile(
+    r"\[chunk:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\]",
+    re.IGNORECASE,
+)
+
+
+def _mock_classify() -> dict[str, Any]:
+    return {
+        "result": {
+            "category": "billing",
+            "urgency": "medium",
+            "suggested_team": "billing_team",
+            "escalation_suggested": False,
+            "escalation_reason": None,
+            "confidence": 0.87,
+        },
+        "latency_ms": 42,
+        "token_usage": {"prompt_tokens": 120, "completion_tokens": 45, "total_tokens": 165},
+        "estimated_cost_cents": 0.000041,
+    }
+
+
+def _mock_embed_batch(texts: list[str]) -> list[list[float]]:
+    import numpy as np
+
+    vectors = []
+    for text in texts:
+        seed = abs(hash(text)) % (2**31)
+        rng = np.random.default_rng(seed)
+        vectors.append(rng.random(EMBEDDING_DIMENSIONS).tolist())
+    return vectors
+
+
+def _mock_generate_with_tools(tool_executor: Callable[..., Any]) -> dict[str, Any]:
+    # Call the real tool executor so retrieval is exercised end-to-end
+    evidence_text = _execute_tool_executor(
+        tool_executor, "search_knowledge", {"query": "billing refund policy"}
+    )
+    chunk_ids = _CHUNK_ID_RE.findall(evidence_text or "")
+
+    mock_body = (
+        "Thank you for reaching out. Based on our documentation, "
+        "I can help clarify this for you."
+    )
+    if chunk_ids:
+        mock_body += f" [chunk:{chunk_ids[0]}]"
+
+    mock_content = json.dumps({
+        "body": mock_body,
+        "cited_evidence": chunk_ids[:3],
+        "confidence": 0.82 if chunk_ids else 0.45,
+        "unresolved_questions": [] if chunk_ids else ["No matching documentation found."],
+        "send_ready": len(chunk_ids) > 0,
+    })
+
+    return {
+        "content": mock_content,
+        "tool_calls_made": [
+            {
+                "call_id": "mock-001",
+                "name": "search_knowledge",
+                "arguments": {"query": "billing refund policy"},
+                "output": evidence_text,
+            }
+        ],
+        "latency_ms": 210,
+        "token_usage": {"prompt_tokens": 600, "completion_tokens": 180, "total_tokens": 780},
+        "estimated_cost_cents": 0.031,
+    }
 
 
 def _call_with_retries(

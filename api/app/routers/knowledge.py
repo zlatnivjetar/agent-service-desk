@@ -1,10 +1,13 @@
+import base64
 from typing import Annotated, Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile, status
 from psycopg import Connection
 
 from app.auth import CurrentUser, get_current_user
+from app.db import pool
 from app.deps import get_rls_db
+from app.pipelines.ingestion import ingest_document
 from app.pipelines.retrieval import search_knowledge
 from app.queries import knowledge as q
 from app.schemas.common import PaginatedResponse
@@ -68,7 +71,7 @@ def get_document(
 )
 async def upload_document(
     user: Annotated[CurrentUser, Depends(get_current_user)],
-    db: Annotated[Connection, Depends(get_rls_db)],
+    background_tasks: BackgroundTasks,
     title: str = Form(...),
     visibility: str = Form(...),
     file: UploadFile = File(...),
@@ -88,20 +91,37 @@ async def upload_document(
         )
 
     raw_bytes = await file.read()
-    try:
-        raw_content = raw_bytes.decode("utf-8", errors="replace")
-    except Exception:
-        raw_content = None
+    content_type = file.content_type or ""
 
-    doc = q.insert_document(
-        conn=db,
-        workspace_id=user.workspace_id,
-        title=title,
-        visibility=visibility,
-        source_filename=filename or None,
-        content_type=file.content_type,
-        raw_content=raw_content,
-    )
+    if content_type == "application/pdf":
+        metadata: dict = {"raw_bytes_b64": base64.b64encode(raw_bytes).decode("ascii")}
+    else:
+        metadata = {"raw_content": raw_bytes.decode("utf-8", errors="replace")}
+
+    # Use a dedicated connection that commits immediately so the background
+    # ingestion task can find the document row as soon as it starts.
+    # (BackgroundTasks run before yield-dependency teardown in Starlette, so
+    # the get_rls_db transaction would still be open when the task begins.)
+    with pool.connection() as insert_conn:
+        with insert_conn.transaction():
+            insert_conn.execute("SET LOCAL ROLE rls_user")
+            insert_conn.execute(
+                "SELECT set_config('app.workspace_id', %s, TRUE),"
+                "       set_config('app.user_role', %s, TRUE)",
+                [user.workspace_id, user.role],
+            )
+            doc = q.insert_document(
+                conn=insert_conn,
+                workspace_id=user.workspace_id,
+                title=title,
+                visibility=visibility,
+                source_filename=filename or None,
+                content_type=content_type,
+                metadata=metadata,
+            )
+    # insert_conn context has exited — transaction committed, row is visible
+    doc_id = str(doc["id"])
+    background_tasks.add_task(ingest_document, doc_id, user.workspace_id)
     return KnowledgeDocDetail(**doc, chunks=[])
 
 

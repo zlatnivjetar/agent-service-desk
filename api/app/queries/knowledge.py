@@ -1,3 +1,4 @@
+import uuid
 from typing import Optional
 
 from psycopg import Connection
@@ -75,9 +76,9 @@ def insert_document(
     visibility: str,
     source_filename: Optional[str],
     content_type: Optional[str],
-    raw_content: Optional[str],
+    metadata: Optional[dict] = None,
 ) -> dict:
-    metadata = Jsonb({"raw_content": raw_content} if raw_content is not None else {})
+    metadata_jsonb = Jsonb(metadata or {})
     row = conn.execute(
         """
         INSERT INTO knowledge_documents
@@ -85,7 +86,7 @@ def insert_document(
         VALUES (%s, %s, %s, %s, %s, 'pending', %s)
         RETURNING id, title, source_filename, content_type, visibility, status, created_at
         """,
-        [workspace_id, title, visibility, source_filename, content_type, metadata],
+        [workspace_id, title, visibility, source_filename, content_type, metadata_jsonb],
     ).fetchone()
     return row
 
@@ -96,3 +97,42 @@ def delete_document(conn: Connection, doc_id: str) -> bool:
         [doc_id],
     ).fetchone()
     return result is not None
+
+
+def get_document_for_ingestion(conn: Connection, doc_id: str) -> Optional[dict]:
+    return conn.execute(
+        """
+        SELECT id, content_type, status, metadata
+        FROM knowledge_documents
+        WHERE id = %s
+        """,
+        [doc_id],
+    ).fetchone()
+
+
+def update_document_status(conn: Connection, doc_id: str, new_status: str) -> None:
+    conn.execute(
+        "UPDATE knowledge_documents SET status = %s, updated_at = now() WHERE id = %s",
+        [new_status, doc_id],
+    )
+
+
+def insert_chunks(conn: Connection, document_id: str, chunks: list[dict]) -> None:
+    """Insert a list of chunks. Each dict must have: chunk_index, content, embedding, token_count."""
+    conn.cursor().executemany(
+        """
+        INSERT INTO knowledge_chunks (id, document_id, chunk_index, content, embedding, token_count)
+        VALUES (%s, %s, %s, %s, %s::vector, %s)
+        """,
+        [
+            (
+                str(uuid.uuid4()),
+                document_id,
+                c["chunk_index"],
+                c["content"],
+                f"[{','.join(str(x) for x in c['embedding'])}]",
+                c["token_count"],
+            )
+            for c in chunks
+        ],
+    )

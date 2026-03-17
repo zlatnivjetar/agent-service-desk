@@ -438,3 +438,77 @@ Appended automatically when COMPLETED is triggered in Claude Code.
 
 ---
 
+## Milestone 3E — Knowledge Ingestion Pipeline
+**Date:** 2026-03-17
+
+### What changed
+- Created `api/app/pipelines/ingestion.py` — `ingest_document(document_id, workspace_id)` background task: parses content, chunks text into ~500-token overlapping segments, embeds all chunks via `embed_batch()`, inserts into `knowledge_chunks`, updates document `status` through `pending → processing → indexed`
+- Added `_workspace_conn(workspace_id)` context manager that sets up full RLS context (`SET LOCAL ROLE rls_user`, `app.workspace_id`, `app.user_role = 'support_agent'`) on a pool connection for background operations
+- Added `_find_document_with_retry()` — opens a fresh pool connection per attempt (up to 10 × 100ms) so each retry gets a new transaction snapshot, handling the race between the upload transaction committing and the background task starting
+- Updated `api/app/routers/knowledge.py` — `POST /knowledge/documents` now inserts the document using a dedicated pool connection (not the `get_rls_db` connection), so the row is committed before `BackgroundTasks` run; passes `user.workspace_id` explicitly to `ingest_document`
+- Added `pymupdf>=1.24` to `api/pyproject.toml` for PDF text extraction via `import fitz`
+- Created `seed/reembed.py` — management script to re-embed all seed knowledge chunks with real OpenAI vectors (replaces random seed embeddings, costs ~$0.02)
+- Added `mock_ai: bool = False` to `api/app/config.py` (reads `MOCK_AI` env var)
+- Added `_mock_classify()`, `_mock_embed_batch()`, `_mock_generate_with_tools()` to `api/app/providers/openai.py`; guards at the top of each public function check `settings.mock_ai` before calling OpenAI
+- Fixed `conn.executemany()` → `conn.cursor().executemany()` in `api/app/queries/knowledge.py`
+
+### Key decisions
+- Upload route uses its own dedicated pool connection (not `get_rls_db`) for the document insert — Starlette runs `BackgroundTasks` before yield-dependency teardown, so the `get_rls_db` transaction is still open when the task starts. A self-managed connection that exits (and commits) before `background_tasks.add_task()` is called guarantees the row is visible immediately
+- Background task receives `workspace_id` directly from the route handler rather than looking it up — avoids the chicken-and-egg problem of needing RLS context to find the document in order to get the workspace_id needed for RLS context
+- `_find_document_with_retry()` opens a fresh connection per attempt: a reused connection in the same transaction snapshot will never see a row that was committed after the snapshot started
+- `_mock_generate_with_tools()` calls the real tool executor so actual DB retrieval runs — only the LLM generation step is skipped. This makes mock mode test retrieval, RLS scoping, and DB writes for real
+
+### Key files
+- `api/app/pipelines/ingestion.py` — `ingest_document()`, `_workspace_conn()`, `_find_document_with_retry()`, `chunk_text()`
+- `api/app/routers/knowledge.py` — upload route uses dedicated pool connection
+- `api/app/queries/knowledge.py` — `get_document_for_ingestion()`, `insert_chunks()` (cursor fix), `update_document_status()`
+- `api/app/providers/openai.py` — mock implementations + guards
+- `api/app/config.py` — `mock_ai` setting
+- `seed/reembed.py` — re-embedding management script
+
+### Gotchas
+- Starlette executes `BackgroundTasks` before yield-dependency cleanup — `get_rls_db`'s transaction is still open when the background task runs, so the freshly inserted document is invisible to any other connection. Fix: dedicate a separate pool connection for the insert that commits before the task is registered
+- `db.commit()` inside `with conn.transaction():` raises `ProgrammingError: Explicit commit() forbidden within a Transaction context` — the context manager owns the commit lifecycle; explicit commits are not allowed
+- `neondb_owner` does not bypass RLS. All policies are `FOR ALL TO rls_user` — a connection without `SET LOCAL ROLE rls_user` sees zero rows, regardless of the connecting user's admin status
+- RLS policy on `knowledge_documents` requires both `app.workspace_id` AND `app.user_role IN ('support_agent', 'team_lead')` — setting only `app.workspace_id` filters out all rows because the policy's `current_user_role()` check evaluates to false
+- psycopg3's `Connection` has `execute()` as a shorthand but not `executemany()` — only `Cursor` does. `conn.executemany(...)` raises `AttributeError`; must use `conn.cursor().executemany(...)`
+
+### Verified
+- `POST /knowledge/documents` with CLAUDE.md → `status: pending` immediately, `status: indexed` with 3 chunks after ~2s ✓
+- `GET /knowledge/documents/{id}` → chunks array with `content`, `chunk_index`, `token_count` ✓
+- `GET /knowledge/search?q=billing+refund` → 5 results with `chunk_id`, `document_title`, `similarity`, `content` ✓
+- `MOCK_AI=1` triage → `billing / medium / billing_team / confidence 0.87 / latency_ms 42` stored in DB ✓
+- `MOCK_AI=1` draft → 3 real evidence chunks retrieved from DB, draft stored with citations, `send_ready: true` ✓
+
+---
+
+## Milestone 3F — End-to-End Pipeline Verification
+**Date:** 2026-03-17
+
+### What changed
+- No code changes — this is a verification milestone
+- Ran full pipeline verification against live DB with `MOCK_AI=1` (OpenAI credits unavailable)
+
+### Key decisions
+- Tested with `MOCK_AI=1` throughout — mock mode exercises all DB writes, RLS scoping, status transitions, role enforcement, and retrieval for real; only the LLM generation call is stubbed. This makes the verification meaningful even without API credits
+- All testing done in PowerShell with `curl.exe`; JSON request bodies written to `body.json` and passed as `-d @body.json` to avoid PowerShell quoting issues with curly braces
+
+### Key files
+- No files changed
+
+### Gotchas
+- PowerShell `-d '{"action": "approved"}'` silently sends an empty body — `curl.exe` on Windows doesn't expand single-quoted strings as shell literals. Fix: write body to a file with `Out-File -Encoding utf8 -NoNewline` and pass `-d @body.json`
+- Draft response is flat (fields at the top level), not nested under a `"draft"` key — `$DRAFT.id` not `$DRAFT.draft.id`
+- `$DRAFT_ID` was overwritten when running a diagnostic `ConvertTo-Json` check in the same session; re-ran the draft endpoint to get a fresh ID
+
+### Verified
+- Upload → `indexed` with real chunks in DB ✓
+- Search returns 5 results from seed data with similarity scores ✓
+- Triage stores prediction: `billing / medium / billing_team / 0.87 confidence / 42ms` ✓
+- Draft retrieves 3 real evidence chunks, stores draft with citation markers, `send_ready: true` ✓
+- Approval: `POST /drafts/{id}/review` with `action: "approved"` → 201, ticket transitions to `pending_customer` ✓
+- Role enforcement: client JWT → triage → `{"detail":"Role 'client_user' cannot access this resource"}` ✓
+- Tenant isolation: evidence chunks scoped to agent's workspace only ✓
+
+---
+
