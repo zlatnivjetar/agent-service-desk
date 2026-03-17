@@ -2,10 +2,13 @@
 
 ## Current Milestone
 
-**→ Milestone 4: Frontend Surfaces**
+**→ Milestone 4A: App Shell, Layout & Navigation**
 
-Full implementation plan: `docs/implementation-plan.md`
-When instructed to "implement current milestone", read the matching sub-milestone from that file.
+Implementation plans:
+- Part 1 (Milestones 1–3): `docs/implementation-plan.md`
+- Part 2 (Milestones 4–6): `docs/implementation-plan-part2.md`
+
+When instructed to "implement current milestone", read the matching sub-milestone from the appropriate plan file.
 
 \---
 
