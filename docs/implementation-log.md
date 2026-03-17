@@ -512,3 +512,31 @@ Appended automatically when COMPLETED is triggered in Claude Code.
 
 ---
 
+
+## Milestone 4A — App Shell, Layout & Navigation
+**Date:** 2026-03-17
+
+### What changed
+- Installed shadcn components: sidebar, separator, tooltip, avatar, dropdown-menu, badge, skeleton, breadcrumb
+- Created `web/src/types/api.ts` — full TypeScript interface set mirroring all FastAPI Pydantic schemas
+- Created `web/src/components/providers.tsx` — TanStack Query provider (30s stale time, retry 1)
+- Created `web/src/hooks/use-current-user.ts` — `useCurrentUser()` hook via `useQuery`
+- Created `web/src/components/app-sidebar.tsx` — collapsible sidebar with role-based nav groups, sign-out dropdown, skeleton loading states
+- Created `web/src/components/page-breadcrumb.tsx` — pathname-driven breadcrumb using Next.js `<Link>`
+- Created `web/src/app/(app)/layout.tsx` — app shell route group (Providers + SidebarProvider + header bar with trigger + breadcrumb)
+- Created placeholder pages: `/tickets`, `/tickets/[id]`, `/reviews`, `/knowledge`, `/evals`
+- Updated root `layout.tsx`: title → "Agent Service Desk", font → Inter
+
+### Key decisions
+- Used `(app)` route group so the sidebar layout wraps only authenticated pages; login page stays outside
+- Nav renders skeletons while `useCurrentUser` is pending — avoids showing wrong items before role is known
+- Used `render={<Link href={...} />}` prop (Base UI pattern used by this shadcn version) instead of `asChild` for all sidebar buttons and breadcrumb links
+
+### Key files touched
+`web/src/types/api.ts`, `web/src/components/providers.tsx`, `web/src/hooks/use-current-user.ts`, `web/src/components/app-sidebar.tsx`, `web/src/components/page-breadcrumb.tsx`, `web/src/app/(app)/layout.tsx`, `web/src/lib/api-client.ts`
+
+### Gotchas
+- This shadcn version (base-nova style, Base UI primitives) uses `render` prop instead of `asChild` — `asChild` causes a TypeScript error
+- `api-client.ts` caches the JWT in a module-level variable; must call `clearTokenCache()` on sign-out or switching accounts reuses the old token for up to 1 hour
+
+---

@@ -44,6 +44,11 @@ async function request<T>(
   return res.json() as Promise<T>;
 }
 
+export function clearTokenCache() {
+  cachedToken = null;
+  tokenExpiry = 0;
+}
+
 export const apiClient = {
   get<T>(path: string): Promise<T> {
     return request<T>("GET", path);

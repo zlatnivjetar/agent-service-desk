@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 4A: App Shell, Layout & Navigation**
+**→ Milestone 4B: Ticket Queue Page**
 
 Implementation plans:
 - Part 1 (Milestones 1–3): `docs/implementation-plan.md`
@@ -36,6 +36,14 @@ Three roles: `client\_user` (own org data), `support\_agent` (workspace tickets 
 * Use parameterized queries (`%s` placeholders) — never f-string user input into SQL
 * Set `row\_factory=dict\_row` on psycopg connections
 * OpenAI models: `gpt-5-mini` for classification/triage, `gpt-5.4` for grounded drafting, `text-embedding-3-small` for embeddings
+
+## Design System
+
+`design-system/agent-service-desk/MASTER.md` is the source of truth for colors, typography, spacing, shadows, and component specs. Read it at the start of every frontend milestone.
+
+Page overrides in `design-system/agent-service-desk/pages/` exist but contain generic landing-page patterns — ignore their section orders and CTA placements. Use only their layout/density overrides when relevant.
+
+Palette: Teal primary (#0D9488), orange accent (#F97316), slate text (#0F172A), light background (#F8FAFC). Font: Inter.
 
 ## Monorepo Structure
 
