@@ -2,14 +2,18 @@
 """
 Agent Service Desk — Demo Accounts Setup
 
-Creates 3 deterministic demo accounts in the first org from the seed:
-  - agent@demo.com  → support_agent
-  - lead@demo.com   → team_lead
-  - client@demo.com → client_user
+Creates 3 deterministic demo accounts:
+  - agent@demo.com  → support_agent  (Org #1 / Workspace #1)
+  - lead@demo.com   → team_lead      (Org #1 / Workspace #1)
+  - client@demo.com → client_user    (Org #2 / Workspace #1)
 
-Also inserts a full set of demo tickets (one per category × status combination)
-to guarantee Org #1 has a rich, spread-out dataset regardless of the Pareto
-distribution in seed.py.
+Agent and lead are in the "support provider" org (Org #1).
+Client is in a separate customer org (Org #2) but is a workspace member of
+Workspace #1 so they can submit and view their company's tickets.
+
+Demo tickets are created with org_id=Org #2, workspace_id=Workspace #1 so:
+  - Agents/leads see them via workspace_id scope (+ all ~289 Org #1 seed tickets)
+  - Client sees only their 48 org_id-scoped tickets
 
 Run after seed.py:
   DATABASE_URL=postgres://... python demo_accounts.py
@@ -29,6 +33,10 @@ import psycopg
 DEMO_AGENT_ID  = "00000000-0000-4000-a000-000000000001"
 DEMO_LEAD_ID   = "00000000-0000-4000-a000-000000000002"
 DEMO_CLIENT_ID = "00000000-0000-4000-a000-000000000003"
+
+# Dedicated org for the demo client — deterministic, not from seed data.
+# Starts empty so the client sees ONLY the 48 demo tickets we insert here.
+DEMO_CLIENT_ORG_ID = "00000000-0000-4000-b000-000000000001"
 
 DEMO_USERS = [
     (DEMO_AGENT_ID,  "agent@demo.com",  "Alex Agent",   "support_agent"),
@@ -103,8 +111,8 @@ def main():
         cur.execute("RESET ROLE")
 
         # ------------------------------------------------------------------
-        # Find Org #1: the physically first org inserted by seed.py
-        # (ctid tracks heap insertion order — matches COPY order)
+        # Find Org #1 (support provider) and Workspace #1.
+        # ctid tracks heap insertion order — matches COPY order from seed.py.
         # ------------------------------------------------------------------
         cur.execute("""
             SELECT o.id, w.id
@@ -120,8 +128,6 @@ def main():
             sys.exit(1)
 
         org_id, ws_id = str(row[0]), str(row[1])
-        print(f"Org #1 id:       {org_id}")
-        print(f"Workspace #1 id: {ws_id}")
 
         # Grab a medium-priority SLA policy for demo tickets
         cur.execute("SELECT id FROM sla_policies WHERE priority = 'medium' LIMIT 1")
@@ -134,6 +140,18 @@ def main():
             return dt.strftime("%Y-%m-%d %H:%M:%S+00")
 
         now_str = fmtts(now)
+
+        # Create the dedicated demo client org (empty — no seed tickets)
+        cur.execute("""
+            INSERT INTO organizations (id, name, slug, created_at, updated_at)
+            VALUES (%s, 'Acme Corp (Demo)', 'acme-corp-demo', %s, %s)
+            ON CONFLICT DO NOTHING
+        """, (DEMO_CLIENT_ORG_ID, now_str, now_str))
+
+        client_org_id = DEMO_CLIENT_ORG_ID
+        print(f"Support Org (agent/lead): {org_id}")
+        print(f"Client Org (demo):        {client_org_id}")
+        print(f"Workspace #1 (shared):    {ws_id}")
 
         # ------------------------------------------------------------------
         # 1. Demo users
@@ -148,14 +166,17 @@ def main():
 
         # ------------------------------------------------------------------
         # 2. Org memberships
+        #    Agent + lead → Org #1 (support provider)
+        #    Client       → Org #2 (customer org)
         # ------------------------------------------------------------------
         print("Inserting org memberships...")
-        for mem_id, (user_id, _, _, _) in zip(DEMO_ORG_MEM_IDS, DEMO_USERS):
+        org_for_user = [org_id, org_id, client_org_id]  # agent, lead, client
+        for mem_id, (user_id, _, _, _), user_org in zip(DEMO_ORG_MEM_IDS, DEMO_USERS, org_for_user):
             cur.execute("""
                 INSERT INTO memberships (id, user_id, org_id, created_at, updated_at)
                 VALUES (%s, %s, %s, %s, %s)
-                ON CONFLICT DO NOTHING
-            """, (mem_id, user_id, org_id, now_str, now_str))
+                ON CONFLICT (id) DO UPDATE SET org_id = EXCLUDED.org_id
+            """, (mem_id, user_id, user_org, now_str, now_str))
 
         # ------------------------------------------------------------------
         # 3. Workspace memberships
@@ -199,9 +220,11 @@ def main():
                         %s::ticket_category, %s::team_name,
                         %s, %s, %s
                     )
-                    ON CONFLICT DO NOTHING
+                    ON CONFLICT (id) DO UPDATE SET
+                        org_id = EXCLUDED.org_id,
+                        workspace_id = EXCLUDED.workspace_id
                 """, (
-                    ticket_id, org_id, ws_id, DEMO_CLIENT_ID, assignee_id,
+                    ticket_id, client_org_id, ws_id, DEMO_CLIENT_ID, assignee_id,
                     f"{subject_base} [{status}]",
                     status, priority, category, team,
                     sla_id, created, created,
@@ -252,8 +275,10 @@ def main():
     print(f"\nDemo accounts:")
     for user_id, email, name, role in DEMO_USERS:
         print(f"  {email:<25} {role:<16} id={user_id}")
-    print(f"\n  Org #1:       {org_id}")
-    print(f"  Workspace #1: {ws_id}")
+    print(f"\n  Support Org (agent/lead): {org_id}")
+    print(f"  Client Org:               {client_org_id}")
+    print(f"  Workspace #1 (shared):    {ws_id}")
+    print(f"\nMint tokens with: python seed/mint_tokens.py")
 
 
 if __name__ == "__main__":

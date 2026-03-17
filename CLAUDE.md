@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 4B: Ticket Queue Page**
+**→ Milestone 4C: Ticket Detail Page**
 
 Implementation plans:
 - Part 1 (Milestones 1–3): `docs/implementation-plan.md`

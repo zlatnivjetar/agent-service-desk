@@ -540,3 +540,39 @@ Appended automatically when COMPLETED is triggered in Claude Code.
 - `api-client.ts` caches the JWT in a module-level variable; must call `clearTokenCache()` on sign-out or switching accounts reuses the old token for up to 1 hour
 
 ---
+
+## Milestone 4B — Ticket Queue Page
+**Date:** 2026-03-17
+
+### What changed
+- Installed shadcn `table`, `select`, `card` components
+- Created `web/src/hooks/use-tickets.ts` — TanStack Query hook; builds query string from params object
+- Created `web/src/hooks/use-ticket-filters.ts` — URL-synced filter/sort/pagination state via `useSearchParams` + `useRouter`; no `useState` for filter values
+- Created `web/src/lib/format.ts` — `formatRelativeTime` and `formatCategory` utilities (no date library)
+- Replaced `web/src/app/(app)/tickets/page.tsx` — full ticket queue: filter bar (4 Select dropdowns), sortable table (Created/Priority/Status), skeleton rows, empty state, pagination
+- Added `--color-success` / `--color-warning` CSS tokens to `globals.css` (oklch values, light + dark)
+- Fixed RLS policies: updated `ticket_isolation` to be role-aware (`client_user` → org_id scope, agents/leads → workspace_id scope); removed explicit `t.org_id = current_org_id()` from 5 child-table policies so they inherit scope via EXISTS subquery
+- Created `seed/migrate_rls.py` — `ALTER POLICY` migration script; applied to live Neon DB
+- Updated `seed/demo_accounts.py` — client user now placed in a dedicated deterministic org (`DEMO_CLIENT_ORG_ID = 00000000-0000-4000-b000-000000000001`, "Acme Corp (Demo)") with zero seed tickets; demo tickets use `org_id = client_org, workspace_id = ws_1`
+- Updated `seed/mint_tokens.py` — now queries `memberships` table for each user's actual `org_id` instead of hardcoding Org #1 for all roles
+
+### Key decisions
+- Page uses `"use client"` with `<Suspense>` wrapping inner component — correct Next.js pattern for `useSearchParams`
+- All filter/sort/page state lives in the URL; `useTicketFilters` is a pure URL → state → URL hook with no local state
+- Badge status/priority colors use `className` overrides + `twMerge` rather than new variant definitions
+- Client demo org is a *new* deterministic org (not a random seed org) so it starts empty and shows exactly 48 demo tickets
+
+### Key files
+- `web/src/app/(app)/tickets/page.tsx` — main page component
+- `web/src/hooks/use-ticket-filters.ts` — URL-synced filter state
+- `web/src/hooks/use-tickets.ts` — data fetching hook
+- `seed/schema.sql` — updated RLS policies (ticket_isolation + 5 child tables)
+- `seed/migrate_rls.py` — live DB migration
+- `seed/demo_accounts.py` — client org split
+- `seed/mint_tokens.py` — DB-driven org_id lookup
+
+### Gotchas
+- Picking "Org #2 from seed" for the client org doesn't work — the second seed org happened to have 356 tickets, more than agents saw. Solution: create a brand new deterministic org with no seed tickets.
+- Child-table RLS policies (`message_isolation`, `assignment_isolation`, etc.) had explicit `t.org_id = current_org_id()` checks that blocked agents from seeing cross-org tickets even after `ticket_isolation` was fixed. Removed those — EXISTS subqueries now inherit the ticket scope automatically via RLS.
+
+---

@@ -453,21 +453,27 @@ CREATE POLICY ws_membership_isolation ON workspace_memberships
     FOR ALL TO rls_user
     USING (workspace_id = current_workspace_id());
 
--- Tickets: org-level isolation (all roles see only their org's tickets)
--- Additional workspace filtering can be done at the application layer
+-- Tickets: role-aware isolation
+--   client_user  → sees only their org's tickets (org_id scope)
+--   agent / lead → sees all tickets in their workspace (workspace_id scope)
 CREATE POLICY ticket_isolation ON tickets
     FOR ALL TO rls_user
-    USING (org_id = current_org_id());
+    USING (
+        CASE current_user_role()
+            WHEN 'client_user' THEN org_id = current_org_id()
+            ELSE workspace_id = current_workspace_id()
+        END
+    );
 
--- Ticket messages: accessible if the parent ticket is accessible
--- Client users cannot see internal notes
+-- Ticket messages: accessible if the parent ticket is accessible.
+-- The EXISTS subquery inherits ticket_isolation automatically.
+-- Client users cannot see internal notes.
 CREATE POLICY message_isolation ON ticket_messages
     FOR ALL TO rls_user
     USING (
         EXISTS (
             SELECT 1 FROM tickets t
             WHERE t.id = ticket_messages.ticket_id
-            AND t.org_id = current_org_id()
         )
         AND (
             -- Non-client roles can see everything
@@ -485,7 +491,6 @@ CREATE POLICY assignment_isolation ON ticket_assignments
         EXISTS (
             SELECT 1 FROM tickets t
             WHERE t.id = ticket_assignments.ticket_id
-            AND t.org_id = current_org_id()
         )
     );
 
@@ -497,7 +502,6 @@ CREATE POLICY prediction_isolation ON ticket_predictions
         AND EXISTS (
             SELECT 1 FROM tickets t
             WHERE t.id = ticket_predictions.ticket_id
-            AND t.org_id = current_org_id()
         )
     );
 
@@ -536,7 +540,6 @@ CREATE POLICY draft_isolation ON draft_generations
         AND EXISTS (
             SELECT 1 FROM tickets t
             WHERE t.id = draft_generations.ticket_id
-            AND t.org_id = current_org_id()
         )
     );
 
@@ -549,7 +552,6 @@ CREATE POLICY approval_isolation ON approval_actions
             SELECT 1 FROM draft_generations dg
             JOIN tickets t ON t.id = dg.ticket_id
             WHERE dg.id = approval_actions.draft_generation_id
-            AND t.org_id = current_org_id()
         )
     );
 
