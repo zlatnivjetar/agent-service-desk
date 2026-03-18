@@ -26,7 +26,7 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 CLASSIFICATION_MODEL = "gpt-5-mini"
-GENERATION_MODEL = "gpt-5.4"
+GENERATION_MODEL = "gpt-5-mini"
 EMBEDDING_MODEL = "text-embedding-3-small"
 
 EMBEDDING_DIMENSIONS = 1536
@@ -38,7 +38,6 @@ REQUEST_TIMEOUT_SECONDS = 10.0
 # Verified against OpenAI official pricing on 2026-03-14.
 _USD_PER_MILLION_TOKENS: dict[str, dict[str, float]] = {
     "gpt-5-mini": {"input": 0.25, "output": 2.0},
-    "gpt-5.4": {"input": 2.5, "output": 15.0},
     "text-embedding-3-small": {"input": 0.02, "output": 0.0},
 }
 

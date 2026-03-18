@@ -65,7 +65,9 @@ export function TicketActions({ ticket }: { ticket: TicketDetail }) {
             <>
               <Select value={statusValue} onValueChange={(value) => setStatusValue(value ?? ticket.status)}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select status" />
+                  <SelectValue placeholder="Select status">
+                    {TICKET_STATUS_OPTIONS.find((o) => o.value === statusValue)?.label}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {TICKET_STATUS_OPTIONS.map((option) => (
@@ -93,7 +95,9 @@ export function TicketActions({ ticket }: { ticket: TicketDetail }) {
             <>
               <Select value={priorityValue} onValueChange={(value) => setPriorityValue(value ?? ticket.priority)}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select priority" />
+                  <SelectValue placeholder="Select priority">
+                    {TICKET_PRIORITY_OPTIONS.find((o) => o.value === priorityValue)?.label}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {TICKET_PRIORITY_OPTIONS.map((option) => (
@@ -121,7 +125,9 @@ export function TicketActions({ ticket }: { ticket: TicketDetail }) {
             <>
               <Select value={assigneeValue} onValueChange={(value) => setAssigneeValue(value ?? "")}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select assignee" />
+                  <SelectValue placeholder="Select assignee">
+                    {assigneeValue ? assigneeOptions.find((o) => o.id === assigneeValue)?.label : undefined}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {assigneeOptions.map((option) => (

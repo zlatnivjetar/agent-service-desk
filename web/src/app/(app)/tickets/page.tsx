@@ -168,11 +168,13 @@ function TicketQueueContent() {
       {/* Filter bar */}
       <div className="flex flex-wrap items-center gap-2">
         <Select
-          value={filters.status ?? ""}
+          value={filters.status}
           onValueChange={(v) => setFilter("status", v || null)}
         >
           <SelectTrigger className="w-40">
-            <SelectValue placeholder="All statuses" />
+            <SelectValue placeholder="All statuses">
+              {filters.status ? formatCategory(filters.status) : undefined}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="new">New</SelectItem>
@@ -185,11 +187,13 @@ function TicketQueueContent() {
         </Select>
 
         <Select
-          value={filters.priority ?? ""}
+          value={filters.priority}
           onValueChange={(v) => setFilter("priority", v || null)}
         >
           <SelectTrigger className="w-36">
-            <SelectValue placeholder="All priorities" />
+            <SelectValue placeholder="All priorities">
+              {filters.priority ? formatCategory(filters.priority) : undefined}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="low">Low</SelectItem>
@@ -200,11 +204,13 @@ function TicketQueueContent() {
         </Select>
 
         <Select
-          value={filters.category ?? ""}
+          value={filters.category}
           onValueChange={(v) => setFilter("category", v || null)}
         >
           <SelectTrigger className="w-44">
-            <SelectValue placeholder="All categories" />
+            <SelectValue placeholder="All categories">
+              {filters.category ? formatCategory(filters.category) : undefined}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="billing">Billing</SelectItem>
@@ -219,11 +225,13 @@ function TicketQueueContent() {
         </Select>
 
         <Select
-          value={filters.team ?? ""}
+          value={filters.team}
           onValueChange={(v) => setFilter("team", v || null)}
         >
           <SelectTrigger className="w-44">
-            <SelectValue placeholder="All teams" />
+            <SelectValue placeholder="All teams">
+              {filters.team ? formatCategory(filters.team) : undefined}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="general_support">General Support</SelectItem>

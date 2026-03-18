@@ -29,6 +29,10 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import type { DraftGenerationResponse, TicketDraft, UserRole } from "@/types/api"
 
+function stripChunkMarkers(body: string): string {
+  return body.replace(/\[chunk:[0-9a-f-]+\]/gi, "").replace(/\n{3,}/g, "\n\n").trim()
+}
+
 import {
   ConfidenceBadge,
   ReviewOutcomeBadge,
@@ -110,7 +114,7 @@ export function DraftPanel({
             </div>
 
             <div className="rounded-xl border bg-background/70 p-4">
-              <p className="whitespace-pre-wrap text-sm leading-6 text-foreground">{draft.body}</p>
+              <p className="whitespace-pre-wrap text-sm leading-6 text-foreground">{stripChunkMarkers(draft.body)}</p>
             </div>
 
             {draft.unresolved_questions?.length ? (

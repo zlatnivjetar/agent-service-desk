@@ -143,7 +143,12 @@ def generate_draft(conn: Connection, ticket_id: str) -> dict[str, Any]:
     try:
         parsed = json.loads(raw_content)
         body = str(parsed.get("body", raw_content))
-        confidence = float(parsed.get("confidence", 0.5))
+        raw_confidence = parsed.get("confidence", 0.5)
+        if isinstance(raw_confidence, str):
+            confidence_map = {"low": 0.3, "medium": 0.55, "high": 0.9}
+            confidence = confidence_map.get(raw_confidence.lower(), 0.5)
+        else:
+            confidence = float(raw_confidence)
         unresolved_questions = list(parsed.get("unresolved_questions", []))
 
         raw_cited: list[Any] = parsed.get("cited_evidence", [])

@@ -35,7 +35,7 @@ Three roles: `client\_user` (own org data), `support\_agent` (workspace tickets 
 * Internal-only knowledge docs must NEVER appear in client-visible contexts
 * Use parameterized queries (`%s` placeholders) — never f-string user input into SQL
 * Set `row\_factory=dict\_row` on psycopg connections
-* OpenAI models: `gpt-5-mini` for classification/triage, `gpt-5.4` for grounded drafting, `text-embedding-3-small` for embeddings
+* OpenAI models: `gpt-5-mini` for classification/triage and grounded drafting, `text-embedding-3-small` for embeddings
 
 ## Design System
 
