@@ -636,3 +636,34 @@ Appended automatically when COMPLETED is triggered in Claude Code.
 - `time_since_generation` is returned as seconds (a number), not an ISO date string — required a separate `formatSecondsAgo(seconds)` helper rather than reusing `formatRelativeTime(dateString)` from `lib/format.ts`
 
 ---
+
+## Milestone 4E — Knowledge Upload Page
+**Date:** 2026-03-18
+
+### What changed
+- Installed shadcn components: `alert-dialog`, `progress`, `label`
+- Exported `API_URL` and `getToken` from `web/src/lib/api-client.ts` to support multipart file uploads that bypass the JSON-only `apiClient`
+- Added `token_count?: number | null` to `KnowledgeChunk` in `web/src/types/api.ts` (mirrors the backend schema)
+- Created `web/src/hooks/use-knowledge.ts` — `useKnowledgeDocs` (paginated list with 5s auto-refresh when any doc is `processing`), `useKnowledgeDocDetail` (triggered on chunk expansion), `useUploadDocument` (direct `fetch` with `FormData`), `useDeleteDocument`
+- Created `web/src/components/knowledge/upload-dialog.tsx` — modal with title input, visibility select, native file input with client-side extension validation (.pdf/.md/.txt only), upload/error states
+- Replaced `web/src/app/(app)/knowledge/page.tsx` — full page: header with Upload button, URL-synced status/visibility filters, card list with inline chunk expansion, AlertDialog delete confirmation, pagination, empty state, `client_user` access gate
+- Fixed role-gating flash across Knowledge, Reviews, and Evals pages: added `isPending` guard so pages return `null` while user role is loading; disabled API queries via `enabled` flag for unauthorized roles
+
+### Key decisions
+- File upload uses raw `fetch` (not `apiClient`) because `apiClient.post()` always sets `Content-Type: application/json` — using `fetch` directly lets the browser set the `multipart/form-data` boundary automatically
+- Chunk expansion uses a `ChunkList` sub-component that is only mounted when expanded — this naturally scopes the `useKnowledgeDocDetail` query to the expanded card without conditional hook calls
+- `refetchInterval` in `useKnowledgeDocs` is a function that inspects `query.state.data` to decide whether to poll (5s) — avoids polling on stable pages while still auto-refreshing during ingestion
+- `enabled: !userPending && !isClientUser` pattern propagated to `useKnowledgeDocs` and `useReviewQueue` — prevents unauthorized API calls from firing before the role check resolves
+
+### Key files
+- `web/src/hooks/use-knowledge.ts` — all knowledge query/mutation hooks
+- `web/src/components/knowledge/upload-dialog.tsx` — upload dialog
+- `web/src/app/(app)/knowledge/page.tsx` — full page
+- `web/src/app/(app)/reviews/page.tsx` — added role gate
+- `web/src/app/(app)/evals/page.tsx` — added role gate
+
+### Gotchas
+- The `Select` component's `onValueChange` types its callback as `(value: string | null, ...) => void` in this shadcn version — `setVisibility` (typed `Dispatch<SetStateAction<string>>`) is not directly assignable; fixed with `(v) => setVisibility(v ?? "internal")`
+- Role flash fix requires returning `null` (not a skeleton) for the brief loading window — a skeleton would be equally misleading for unauthorized users, and `useCurrentUser` resolves quickly from TanStack Query cache on subsequent navigations
+
+---

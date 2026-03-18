@@ -4,13 +4,17 @@ import { apiClient } from "@/lib/api-client"
 import { ticketDetailQueryKey } from "@/hooks/use-ticket-detail"
 import type { ApprovalRequest, ApprovalResponse, DraftQueueItem, PaginatedResponse } from "@/types/api"
 
-export function useReviewQueue(params: { page: number; per_page: number }) {
+export function useReviewQueue(
+  params: { page: number; per_page: number },
+  options?: { enabled?: boolean }
+) {
   const searchParams = new URLSearchParams()
   searchParams.set("page", String(params.page))
   searchParams.set("per_page", String(params.per_page))
 
   return useQuery({
     queryKey: ["reviews", params],
+    enabled: options?.enabled !== false,
     queryFn: () =>
       apiClient.get<PaginatedResponse<DraftQueueItem>>(`/drafts/review-queue?${searchParams}`),
     refetchInterval: 30_000,

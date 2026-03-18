@@ -1,9 +1,9 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 let cachedToken: string | null = null;
 let tokenExpiry: number = 0;
 
-async function getToken(): Promise<string> {
+export async function getToken(): Promise<string> {
   if (cachedToken && Date.now() < tokenExpiry - 30_000) {
     return cachedToken;
   }

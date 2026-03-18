@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { CheckCircle2, ExternalLink, LoaderCircle } from "lucide-react"
 
 import { useReviewQueue, useReviewDraftFromQueue } from "@/hooks/use-review-queue"
+import { useCurrentUser } from "@/hooks/use-current-user"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -35,7 +36,24 @@ function ReviewQueueContent() {
   const searchParams = useSearchParams()
   const page = Math.max(1, Number(searchParams.get("page") ?? "1"))
 
-  const { data, isLoading } = useReviewQueue({ page, per_page: 20 })
+  const { data: user, isPending: userPending } = useCurrentUser()
+  const { data, isLoading } = useReviewQueue(
+    { page, per_page: 20 },
+    { enabled: !userPending && user?.role !== "client_user" }
+  )
+
+  if (userPending) return null
+
+  if (user?.role === "client_user") {
+    return (
+      <div className="flex flex-col items-center gap-3 py-20 text-center p-6">
+        <p className="text-base font-medium text-foreground">Access denied</p>
+        <p className="text-sm text-muted-foreground">
+          The review queue is available to agents and team leads only.
+        </p>
+      </div>
+    )
+  }
 
   function setPage(newPage: number) {
     const params = new URLSearchParams(searchParams.toString())

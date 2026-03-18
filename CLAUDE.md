@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 4E: Knowledge Upload Page**
+**→ Milestone 5A: Eval Runner Backend**
 
 Implementation plans:
 - Part 1 (Milestones 1–3): `docs/implementation-plan.md`

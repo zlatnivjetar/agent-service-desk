@@ -162,6 +162,7 @@ export interface KnowledgeChunk {
   id: string
   chunk_index: number
   content: string
+  token_count?: number | null
 }
 
 export interface KnowledgeDocDetail extends KnowledgeDocListItem {
