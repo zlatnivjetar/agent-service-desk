@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 6B: API Performance Endpoints & Optimizations**
+**→ Milestone 6C: Deployment Configuration**
 
 Implementation plans:
 - Part 1 (Milestones 1–3): `docs/implementation-plan.md`

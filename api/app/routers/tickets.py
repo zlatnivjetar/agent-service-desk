@@ -29,6 +29,7 @@ from app.schemas.tickets import (
     TicketMessage,
     TicketPrediction,
     TicketPredictionRecord,
+    TicketStats,
     TicketUpdate,
 )
 
@@ -57,6 +58,11 @@ def _build_detail(ticket: dict, conn: Connection) -> TicketDetail:
         latest_draft=TicketDraft.model_validate(draft) if draft else None,
         assignments=[TicketAssignment.model_validate(a) for a in assignments],
     )
+
+
+@router.get("/stats", response_model=TicketStats)
+def get_ticket_stats(db: Annotated[Connection, Depends(get_rls_db)]):
+    return q.get_ticket_stats(db)
 
 
 @router.get("", response_model=PaginatedResponse)

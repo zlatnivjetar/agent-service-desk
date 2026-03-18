@@ -118,3 +118,9 @@ class MessageCreate(BaseModel):
 class AssignRequest(BaseModel):
     assignee_id: UUID
     team: Optional[str] = None
+
+
+class TicketStats(BaseModel):
+    total: int
+    by_status: dict[str, int]
+    by_priority: dict[str, int]

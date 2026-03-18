@@ -365,6 +365,10 @@ CREATE INDEX idx_prompt_versions_type_active ON prompt_versions(type, is_active)
 -- Draft generations by approval outcome (review queue)
 CREATE INDEX idx_draft_generations_approval ON draft_generations(approval_outcome);
 
+-- Partial index for pending drafts (review queue primary query)
+CREATE INDEX idx_draft_pending ON draft_generations(created_at)
+    WHERE approval_outcome IS NULL OR approval_outcome = 'pending';
+
 -- Messages ordered within a ticket
 CREATE INDEX idx_ticket_messages_ticket_created
     ON ticket_messages(ticket_id, created_at);

@@ -243,6 +243,14 @@ export interface EvalComparison {
   metric_diff: MetricDiff
 }
 
+// Users
+export interface UserListItem {
+  id: string
+  full_name: string
+  email: string
+  role: UserRole
+}
+
 export interface PromptVersion {
   id: string
   name: string

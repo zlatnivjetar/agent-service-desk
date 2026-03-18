@@ -341,6 +341,43 @@ def insert_draft(
     ).fetchone()
 
 
+def get_ticket_stats(conn: Connection) -> dict:
+    rows = conn.execute(
+        """
+        SELECT
+            COUNT(*)                                            AS total,
+            COUNT(*) FILTER (WHERE status = 'new')             AS status_new,
+            COUNT(*) FILTER (WHERE status = 'open')            AS status_open,
+            COUNT(*) FILTER (WHERE status = 'pending_customer') AS status_pending_customer,
+            COUNT(*) FILTER (WHERE status = 'pending_internal') AS status_pending_internal,
+            COUNT(*) FILTER (WHERE status = 'resolved')        AS status_resolved,
+            COUNT(*) FILTER (WHERE status = 'closed')          AS status_closed,
+            COUNT(*) FILTER (WHERE priority = 'low')           AS priority_low,
+            COUNT(*) FILTER (WHERE priority = 'medium')        AS priority_medium,
+            COUNT(*) FILTER (WHERE priority = 'high')          AS priority_high,
+            COUNT(*) FILTER (WHERE priority = 'critical')      AS priority_critical
+        FROM tickets
+        """
+    ).fetchone()
+    return {
+        "total": rows["total"],
+        "by_status": {
+            "new": rows["status_new"],
+            "open": rows["status_open"],
+            "pending_customer": rows["status_pending_customer"],
+            "pending_internal": rows["status_pending_internal"],
+            "resolved": rows["status_resolved"],
+            "closed": rows["status_closed"],
+        },
+        "by_priority": {
+            "low": rows["priority_low"],
+            "medium": rows["priority_medium"],
+            "high": rows["priority_high"],
+            "critical": rows["priority_critical"],
+        },
+    }
+
+
 def assign_ticket(
     conn: Connection,
     ticket_id: str,

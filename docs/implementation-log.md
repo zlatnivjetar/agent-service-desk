@@ -772,3 +772,36 @@ Appended automatically when COMPLETED is triggered in Claude Code.
 ### Gotchas
 - `sonner`'s `<Toaster>` uses `useTheme` from `next-themes`; works without an explicit `ThemeProvider` because the component defaults to `"system"` if `useTheme` returns undefined
 - Function declarations inside a component after an early `return` are hoisted in JS — the reviews/knowledge pages already used this pattern for `setPage`, so adding `isError` guards above them is valid
+
+---
+
+## Milestone 6B — API Performance Endpoints & Optimizations
+
+### What changed
+- Added `GET /users` endpoint returning all users in the current workspace (RLS-scoped via `app.workspace_id`)
+- Added `GET /tickets/stats` endpoint returning aggregate ticket counts by status and priority
+- Replaced hardcoded `DEMO_ASSIGNEES` in the ticket workspace assignee picker with live data from `/users`
+- Added partial index `idx_draft_pending` on `draft_generations(created_at)` for pending review queue queries
+
+### Key decisions
+- `/tickets/stats` route is registered **before** `/{ticket_id}` in the router to prevent FastAPI treating "stats" as a UUID path parameter
+- `get_ticket_stats()` uses `COUNT(*) FILTER (WHERE ...)` — single-pass aggregate, no subqueries or GROUP BY
+- `useWorkspaceUsers()` hook sets `staleTime: 5min` since the users list changes rarely
+- If the current assignee isn't in the workspace users list (edge case), the component falls back to `ticket.assignee_name` from the ticket detail
+
+### Key files touched
+- `api/app/routers/users.py` (new)
+- `api/app/queries/users.py` (new)
+- `api/app/schemas/users.py` (new)
+- `api/app/routers/tickets.py` — added `/stats` route
+- `api/app/queries/tickets.py` — added `get_ticket_stats()`
+- `api/app/schemas/tickets.py` — added `TicketStats`
+- `api/app/main.py` — registered users router
+- `web/src/hooks/use-users.ts` (new)
+- `web/src/types/api.ts` — added `UserListItem`
+- `web/src/components/ticket/ticket-actions.tsx` — live assignee picker
+- `seed/schema.sql` — added `idx_draft_pending` partial index
+
+### Gotchas
+- Vector HNSW index on `knowledge_chunks.embedding` was already present in schema.sql — no action needed
+- The partial index in schema.sql only applies to fresh DB resets; existing Neon instances need a manual `CREATE INDEX` migration to pick it up

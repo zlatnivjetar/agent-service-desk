@@ -1,12 +1,13 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 
 import { toast } from "sonner"
 import {
   useAssignTicket,
   useUpdateTicket,
 } from "@/hooks/use-ticket-detail"
+import { useWorkspaceUsers } from "@/hooks/use-users"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -19,7 +20,6 @@ import {
 import type { TicketDetail } from "@/types/api"
 
 import {
-  DEMO_ASSIGNEES,
   TICKET_PRIORITY_OPTIONS,
   TICKET_STATUS_OPTIONS,
   getErrorMessage,
@@ -28,6 +28,7 @@ import {
 export function TicketActions({ ticket }: { ticket: TicketDetail }) {
   const updateTicket = useUpdateTicket(ticket.id)
   const assignTicket = useAssignTicket(ticket.id)
+  const { data: workspaceUsers } = useWorkspaceUsers()
 
   const [statusValue, setStatusValue] = useState(ticket.status)
   const [priorityValue, setPriorityValue] = useState(ticket.priority)
@@ -39,20 +40,11 @@ export function TicketActions({ ticket }: { ticket: TicketDetail }) {
     setAssigneeValue(ticket.assignee_id ?? "")
   }, [ticket.assignee_id, ticket.priority, ticket.status])
 
-  const assigneeOptions = useMemo(() => {
-    if (!ticket.assignee_id || DEMO_ASSIGNEES.some((assignee) => assignee.id === ticket.assignee_id)) {
-      return DEMO_ASSIGNEES
-    }
-
-    return [
-      {
-        id: ticket.assignee_id,
-        label: `${ticket.assignee_name ?? "Current assignee"} (current)`,
-        role: "support_agent" as const,
-      },
-      ...DEMO_ASSIGNEES,
-    ]
-  }, [ticket.assignee_id, ticket.assignee_name])
+  const assigneeOptions = workspaceUsers?.map((u) => ({
+    id: u.id,
+    label: u.full_name,
+    role: u.role,
+  })) ?? []
 
   return (
     <Card id="ticket-actions" className="border-0 bg-white/90 shadow-sm ring-1 ring-foreground/8">
@@ -133,7 +125,11 @@ export function TicketActions({ ticket }: { ticket: TicketDetail }) {
               <Select value={assigneeValue} onValueChange={(value) => setAssigneeValue(value ?? "")}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select assignee">
-                    {assigneeValue ? assigneeOptions.find((o) => o.id === assigneeValue)?.label : undefined}
+                    {assigneeValue
+                      ? (assigneeOptions.find((o) => o.id === assigneeValue)?.label
+                          ?? ticket.assignee_name
+                          ?? "Unknown")
+                      : undefined}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
