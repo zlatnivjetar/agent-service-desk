@@ -1,0 +1,3 @@
+Table columns generally
+Unify badges
+Upload and other modals padding
