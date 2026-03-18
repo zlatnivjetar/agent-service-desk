@@ -193,17 +193,19 @@ export interface EvalSetDetail extends EvalSetListItem {
 
 export interface EvalExample {
   id: string
-  input: string
-  expected_output?: string | null
-  metadata?: Record<string, unknown> | null
+  type: "classification" | "routing" | "citation"
+  input_text: string
+  expected_category?: string | null
+  expected_team?: string | null
+  expected_chunk_ids?: string[] | null
 }
 
 export interface EvalResult {
   id: string
   eval_example_id: string
   passed: boolean
-  model_output: string
-  expected_output?: string | null
+  model_output: unknown
+  expected_output?: unknown | null
   notes?: string | null
 }
 
@@ -227,21 +229,24 @@ export interface EvalRunDetail extends EvalRunListItem {
 }
 
 export interface MetricDiff {
-  metric: string
-  run_a: number
-  run_b: number
-  delta: number
+  accuracy_a?: number | null
+  accuracy_b?: number | null
+  routing_accuracy_a?: number | null
+  routing_accuracy_b?: number | null
+  citation_hit_rate_a?: number | null
+  citation_hit_rate_b?: number | null
 }
 
 export interface EvalComparison {
-  run_a: EvalRunListItem
-  run_b: EvalRunListItem
-  metric_diffs: MetricDiff[]
+  run_a: EvalRunDetail
+  run_b: EvalRunDetail
+  metric_diff: MetricDiff
 }
 
 export interface PromptVersion {
   id: string
   name: string
-  description?: string | null
+  type: string
+  is_active: boolean
   created_at: string
 }

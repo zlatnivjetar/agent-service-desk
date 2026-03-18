@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 5B: Eval Console Frontend**
+**→ Milestone 6A: Error Handling, Loading States & Polish**
 
 Implementation plans:
 - Part 1 (Milestones 1–3): `docs/implementation-plan.md`

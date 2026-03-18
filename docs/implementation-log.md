@@ -699,3 +699,28 @@ Appended automatically when COMPLETED is triggered in Claude Code.
 - FastAPI/Starlette background task ordering: `BackgroundTasks` runs inside `response.__call__` before `AsyncExitStack.__aexit__` — the creating route's transaction hasn't committed when the task starts. Fix: commit in the route via an explicit connection, not `get_rls_db`
 
 ---
+
+## Milestone 5B — Eval Console Frontend
+**Date:** 2026-03-18
+
+### What changed
+- Installed shadcn `tabs`, `collapsible`, and `checkbox` components
+- Updated `web/src/types/api.ts`: aligned `EvalExample`, `EvalResult`, `EvalComparison`, `MetricDiff`, and `PromptVersion` with actual backend Pydantic schemas (backend uses flat `metric_diff` object, not an array; `model_output` is `unknown`; `PromptVersion` has `type` and `is_active`)
+- Created `web/src/hooks/use-evals.ts`: six hooks — `useEvalSets`, `useEvalRuns` (auto-refetch every 5s while any run is pending/running), `useEvalRunDetail`, `useEvalComparison`, `usePromptVersions`, `useCreateEvalRun`
+- Created `web/src/components/eval/run-eval-form.tsx`: Tab 1 — Select dropdowns for eval set and prompt version, "Run Evaluation" button
+- Created `web/src/components/eval/eval-runs-list.tsx`: Tab 2 — Runs table with status badges, pass/fail counts, accuracy %, checkboxes for comparison selection, collapsible per-example detail with pass/fail icons
+- Created `web/src/components/eval/eval-comparison.tsx`: Tab 3 — Metrics side-by-side with colored deltas, per-example comparison with amber highlighting for differing results
+- Replaced `web/src/app/(app)/evals/page.tsx` with full tabbed layout and access control
+
+### Key decisions
+- `useEvalRuns` uses a dynamic `refetchInterval` — polls every 5s only while at least one run is `pending` or `running`, otherwise stops; avoids unnecessary polling on idle pages
+- Run detail is fetched on demand (`useEvalRunDetail`) when a row is expanded, not eagerly with the list — keeps the runs list fast
+- Comparison tab is disabled until exactly 2 runs are checked; a badge on the tab shows the current selection count
+
+### Gotchas
+- Base UI `Select` requires `value` to be controlled from the first render — initializing with `null` and passing `?? undefined` causes an uncontrolled→controlled warning. Fix: initialize state as `""` and handle `onValueChange: (v) => setState(v ?? "")`
+- Base UI `SelectValue` does not auto-display `ItemText` in the trigger — it must receive explicit children that look up the selected label from state (same pattern as `ticket-actions.tsx`)
+- `model_output` from the eval API is typed as `Any` in Python and arrives as a JSON object (e.g. `{"category": "billing"}`), not a plain string — `String(value)` gives `[object Object]`; fixed with a `formatOutput()` helper that uses `Object.entries` for objects
+- Base UI `CollapsibleTrigger` does not support `asChild` — render styles directly on the trigger element instead of wrapping a `Button`
+
+---
