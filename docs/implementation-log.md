@@ -613,3 +613,26 @@ Appended automatically when COMPLETED is triggered in Claude Code.
 - `PageBreadcrumb` lives in the shared layout and has no access to TanStack Query or server data; showing the short UUID from the URL path is the correct pattern rather than fetching ticket subject
 
 ---
+
+## Milestone 4D — Review Queue Page
+**Date:** 2026-03-18
+
+### What changed
+- Created `web/src/hooks/use-review-queue.ts` — `useReviewQueue` (paginated fetch with 30s auto-refresh) and `useReviewDraftFromQueue` (approve/reject/escalate mutation)
+- Replaced `web/src/app/(app)/reviews/page.tsx` — full review queue implementation with card list, pagination, skeleton loading, empty state, and reject dialog
+- Patched `fix: post-4C` commit: downgraded generation model (`gpt-5.4` → `gpt-5-mini`), handle string confidence values from drafting pipeline, fixed SelectValue display in filter and action dropdowns, stripped `[chunk:uuid]` markers from rendered draft body
+
+### Key decisions
+- Each `ReviewCard` is a self-contained component with its own `useReviewDraftFromQueue` hook instance — avoids shared mutation state across cards, each card tracks its own pending/error state independently
+- "Edit" navigates to `/tickets/[ticket_id]` rather than opening an inline dialog — the review queue body is truncated to 200 chars, so editing requires the full draft body available only on the ticket workspace
+- `useReviewDraftFromQueue` optionally accepts `ticketId` and invalidates `["ticket", ticketId]` when provided — keeps the ticket workspace cache warm if the user navigates there after acting from the queue
+- Pagination is URL-synced (`?page=N`) consistent with the ticket queue pattern; `refetchInterval: 30_000` on the query so new drafts surface without manual refresh
+
+### Key files
+- `web/src/hooks/use-review-queue.ts` — query + mutation hooks for the review queue
+- `web/src/app/(app)/reviews/page.tsx` — full page implementation
+
+### Gotchas
+- `time_since_generation` is returned as seconds (a number), not an ISO date string — required a separate `formatSecondsAgo(seconds)` helper rather than reusing `formatRelativeTime(dateString)` from `lib/format.ts`
+
+---
