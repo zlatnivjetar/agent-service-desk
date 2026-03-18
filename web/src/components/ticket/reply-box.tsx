@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { Send, Sparkles } from "lucide-react"
 
+import { toast } from "sonner"
 import { useAddMessage } from "@/hooks/use-ticket-detail"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -29,8 +30,7 @@ export function ReplyBox({
     return () => window.clearTimeout(timeoutId)
   }, [addMessage, addMessage.isSuccess])
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+  function submitMessage() {
     const trimmedBody = body.trim()
     if (!trimmedBody) return
 
@@ -43,9 +43,24 @@ export function ReplyBox({
         onSuccess: () => {
           setBody("")
           setIsInternal(false)
+          toast.success("Message sent")
         },
+        onError: (e) => toast.error(getErrorMessage(e, "Failed to send message")),
       }
     )
+  }
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    submitMessage()
+  }
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault()
+      if (!body.trim() || addMessage.isPending) return
+      submitMessage()
+    }
   }
 
   return (
@@ -58,7 +73,8 @@ export function ReplyBox({
           <Textarea
             value={body}
             onChange={(event) => setBody(event.target.value)}
-            placeholder="Write your reply..."
+            onKeyDown={handleKeyDown}
+            placeholder="Write your reply…  (Ctrl+Enter to send)"
             className="min-h-32 bg-background/80"
           />
 

@@ -724,3 +724,51 @@ Appended automatically when COMPLETED is triggered in Claude Code.
 - Base UI `CollapsibleTrigger` does not support `asChild` — render styles directly on the trigger element instead of wrapping a `Button`
 
 ---
+
+---
+
+## Milestone 6A — Error Handling, Loading States & Polish
+**Date:** 2026-03-18
+
+### What changed
+- Created `web/src/components/error-boundary.tsx` — class-based React error boundary wrapping all page content; shows "Something went wrong" card with reload button
+- Created `web/src/components/ui/page-loading.tsx` — full-page centered spinner (Loader2)
+- Created `web/src/components/ui/page-error.tsx` — full-page error state with AlertCircle icon + Retry button
+- Created `web/src/components/ui/empty-state.tsx` — reusable centered icon/title/description/action component
+- Installed `sonner` via shadcn CLI; added `<Toaster />` to `(app)/layout.tsx`
+- Added `<ErrorBoundary>` wrapping `{children}` in `(app)/layout.tsx`
+- Added toast notifications (38 calls) to all mutations: draft generate/redraft/approve/reject/escalate, triage, message sent, ticket update/assign, document upload/delete, eval run started
+- Added `onError` toast calls to all mutation error paths
+- Added `Ctrl+Enter` / `Cmd+Enter` keyboard shortcut in reply textarea to submit messages
+- Added `isError` + `PageError` + retry to: tickets page, review queue, knowledge page
+- Fixed evals page: `isPending` now shows `<PageLoading />` instead of returning `null`
+- Updated `web/src/app/login/page.tsx` to use design system tokens (`bg-background`, `bg-card`, `border-border`, `text-foreground`) and shadcn `Button`, `Input`, `Label` components
+
+### Key decisions
+- Toasts are added as `onSuccess`/`onError` callbacks directly on `mutate()` call sites — keeps the hook layer clean and allows per-callsite message customization
+- Error boundary is a class component with `"use client"` directive — only React class components can be error boundaries; the server layout renders it fine
+- Kept inline error `<p>` elements in forms alongside toasts — toasts are transient, inline errors persist for visibility in multi-step dialogs
+- Removed demo credentials text below login card per user request after initial implementation
+
+### Key files touched
+- `web/src/components/error-boundary.tsx` (new)
+- `web/src/components/ui/page-loading.tsx` (new)
+- `web/src/components/ui/page-error.tsx` (new)
+- `web/src/components/ui/empty-state.tsx` (new)
+- `web/src/components/ui/sonner.tsx` (new — shadcn generated)
+- `web/src/app/(app)/layout.tsx`
+- `web/src/app/login/page.tsx`
+- `web/src/app/(app)/tickets/page.tsx`
+- `web/src/app/(app)/reviews/page.tsx`
+- `web/src/app/(app)/knowledge/page.tsx`
+- `web/src/app/(app)/evals/page.tsx`
+- `web/src/components/ticket/draft-panel.tsx`
+- `web/src/components/ticket/triage-panel.tsx`
+- `web/src/components/ticket/ticket-actions.tsx`
+- `web/src/components/ticket/reply-box.tsx`
+- `web/src/components/knowledge/upload-dialog.tsx`
+- `web/src/components/eval/run-eval-form.tsx`
+
+### Gotchas
+- `sonner`'s `<Toaster>` uses `useTheme` from `next-themes`; works without an explicit `ThemeProvider` because the component defaults to `"system"` if `useTheme` returns undefined
+- Function declarations inside a component after an early `return` are hoisted in JS — the reviews/knowledge pages already used this pattern for `setPage`, so adding `isError` guards above them is valid

@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 6A: Error Handling, Loading States & Polish**
+**→ Milestone 6B: API Performance Endpoints & Optimizations**
 
 Implementation plans:
 - Part 1 (Milestones 1–3): `docs/implementation-plan.md`

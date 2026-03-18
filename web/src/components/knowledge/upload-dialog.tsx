@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef, useState } from "react"
+import { toast } from "sonner"
 import { useUploadDocument } from "@/hooks/use-knowledge"
 import {
   Dialog,
@@ -77,7 +78,13 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
     if (!title.trim() || !file || uploadMutation.isPending) return
     uploadMutation.mutate(
       { title: title.trim(), visibility, file },
-      { onSuccess: handleClose }
+      {
+        onSuccess: () => {
+          handleClose()
+          toast.success("Document uploaded")
+        },
+        onError: (e) => toast.error((e as Error)?.message || "Upload failed"),
+      }
     )
   }
 

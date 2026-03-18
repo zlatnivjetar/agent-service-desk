@@ -4,6 +4,7 @@ import { Suspense, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { BookOpen, ChevronDown, ChevronRight, Trash2, Upload } from "lucide-react"
 
+import { toast } from "sonner"
 import {
   useKnowledgeDocs,
   useKnowledgeDocDetail,
@@ -11,6 +12,7 @@ import {
 } from "@/hooks/use-knowledge"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { UploadDialog } from "@/components/knowledge/upload-dialog"
+import { PageError } from "@/components/ui/page-error"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -125,7 +127,11 @@ function DocCard({ doc }: { doc: KnowledgeDocListItem }) {
 
   function handleDelete() {
     deleteMutation.mutate(doc.id, {
-      onSuccess: () => setDeleteOpen(false),
+      onSuccess: () => {
+        setDeleteOpen(false)
+        toast.success("Document deleted")
+      },
+      onError: (e) => toast.error((e as Error)?.message || "Failed to delete document"),
     })
   }
 
@@ -273,7 +279,7 @@ function KnowledgePageContent() {
     router.push(`?${next.toString()}`)
   }
 
-  const { data, isLoading } = useKnowledgeDocs(
+  const { data, isLoading, isError, refetch } = useKnowledgeDocs(
     { page, per_page: 20, status: status || null, visibility: visibility || null },
     { enabled: !userPending && !isClientUser }
   )
@@ -296,6 +302,10 @@ function KnowledgePageContent() {
         </p>
       </div>
     )
+  }
+
+  if (isError) {
+    return <PageError message="Failed to load knowledge documents." onRetry={() => refetch()} />
   }
 
   const hasActiveFilters = !!(status || visibility)

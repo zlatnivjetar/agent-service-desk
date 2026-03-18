@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 
+import { toast } from "sonner"
 import {
   useAssignTicket,
   useUpdateTicket,
@@ -79,7 +80,10 @@ export function TicketActions({ ticket }: { ticket: TicketDetail }) {
               </Select>
               <Button
                 variant="outline"
-                onClick={() => updateTicket.mutate({ status: statusValue })}
+                onClick={() => updateTicket.mutate({ status: statusValue }, {
+                  onSuccess: () => toast.success("Ticket updated"),
+                  onError: (e) => toast.error(getErrorMessage(e, "Failed to update ticket")),
+                })}
                 disabled={statusValue === ticket.status || updateTicket.isPending}
                 className="cursor-pointer"
               >
@@ -109,7 +113,10 @@ export function TicketActions({ ticket }: { ticket: TicketDetail }) {
               </Select>
               <Button
                 variant="outline"
-                onClick={() => updateTicket.mutate({ priority: priorityValue })}
+                onClick={() => updateTicket.mutate({ priority: priorityValue }, {
+                  onSuccess: () => toast.success("Ticket updated"),
+                  onError: (e) => toast.error(getErrorMessage(e, "Failed to update ticket")),
+                })}
                 disabled={priorityValue === ticket.priority || updateTicket.isPending}
                 className="cursor-pointer"
               >
@@ -139,7 +146,10 @@ export function TicketActions({ ticket }: { ticket: TicketDetail }) {
               </Select>
               <Button
                 variant="outline"
-                onClick={() => assignTicket.mutate({ assignee_id: assigneeValue })}
+                onClick={() => assignTicket.mutate({ assignee_id: assigneeValue }, {
+                  onSuccess: () => toast.success("Ticket assigned"),
+                  onError: (e) => toast.error(getErrorMessage(e, "Failed to assign ticket")),
+                })}
                 disabled={!assigneeValue || assigneeValue === ticket.assignee_id || assignTicket.isPending}
                 className="cursor-pointer"
               >
@@ -151,7 +161,10 @@ export function TicketActions({ ticket }: { ticket: TicketDetail }) {
 
         <div className="flex flex-wrap gap-2">
           <Button
-            onClick={() => updateTicket.mutate({ status: "resolved" })}
+            onClick={() => updateTicket.mutate({ status: "resolved" }, {
+              onSuccess: () => toast.success("Ticket updated"),
+              onError: (e) => toast.error(getErrorMessage(e, "Failed to update ticket")),
+            })}
             disabled={ticket.status === "resolved" || updateTicket.isPending}
             className="cursor-pointer bg-[#0D9488] text-white hover:bg-[#0A7C72]"
           >
@@ -161,7 +174,10 @@ export function TicketActions({ ticket }: { ticket: TicketDetail }) {
           {(ticket.status === "resolved" || ticket.status === "closed") && (
             <Button
               variant="outline"
-              onClick={() => updateTicket.mutate({ status: "open" })}
+              onClick={() => updateTicket.mutate({ status: "open" }, {
+                onSuccess: () => toast.success("Ticket updated"),
+                onError: (e) => toast.error(getErrorMessage(e, "Failed to update ticket")),
+              })}
               disabled={updateTicket.isPending}
               className="cursor-pointer"
             >

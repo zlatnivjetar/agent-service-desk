@@ -10,6 +10,7 @@ import {
   Sparkles,
 } from "lucide-react"
 
+import { toast } from "sonner"
 import {
   useGenerateDraft,
   useRedraft,
@@ -69,22 +70,36 @@ export function DraftPanel({
 
   function handleGenerate() {
     generateDraft.mutate(undefined, {
-      onSuccess: (result) => onEvidenceLoaded(result),
+      onSuccess: (result) => {
+        onEvidenceLoaded(result)
+        toast.success("Draft generated")
+      },
+      onError: (e) => toast.error(getErrorMessage(e, "Failed to generate draft")),
     })
   }
 
   function handleRedraft() {
     redraft.mutate(undefined, {
-      onSuccess: (result) => onEvidenceLoaded(result),
+      onSuccess: (result) => {
+        onEvidenceLoaded(result)
+        toast.success("Draft generated")
+      },
+      onError: (e) => toast.error(getErrorMessage(e, "Failed to re-draft")),
     })
   }
 
   function handleApprove() {
-    reviewDraft.mutate({ action: "approved" })
+    reviewDraft.mutate({ action: "approved" }, {
+      onSuccess: () => toast.success("Draft approved"),
+      onError: (e) => toast.error(getErrorMessage(e, "Failed to approve draft")),
+    })
   }
 
   function handleEscalate() {
-    reviewDraft.mutate({ action: "escalated" })
+    reviewDraft.mutate({ action: "escalated" }, {
+      onSuccess: () => toast.success("Draft escalated"),
+      onError: (e) => toast.error(getErrorMessage(e, "Failed to escalate")),
+    })
   }
 
   return (
@@ -178,7 +193,13 @@ export function DraftPanel({
                   onSubmit={() =>
                     reviewDraft.mutate(
                       { action: "edited_and_approved", edited_body: editedBody.trim() },
-                      { onSuccess: () => setEditOpen(false) }
+                      {
+                        onSuccess: () => {
+                          setEditOpen(false)
+                          toast.success("Draft approved")
+                        },
+                        onError: (e) => toast.error(getErrorMessage(e, "Failed to approve draft")),
+                      }
                     )
                   }
                 />
@@ -196,7 +217,9 @@ export function DraftPanel({
                         onSuccess: () => {
                           setRejectOpen(false)
                           setRejectReason("")
+                          toast.success("Draft rejected")
                         },
+                        onError: (e) => toast.error(getErrorMessage(e, "Failed to reject draft")),
                       }
                     )
                   }

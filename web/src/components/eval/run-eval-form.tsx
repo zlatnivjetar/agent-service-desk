@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { LoaderCircle } from "lucide-react"
+import { toast } from "sonner"
 
 import { useEvalSets, usePromptVersions, useCreateEvalRun } from "@/hooks/use-evals"
 import { Button } from "@/components/ui/button"
@@ -41,8 +42,10 @@ export function RunEvalForm({ onRunStarted }: RunEvalFormProps) {
         onSuccess: () => {
           setEvalSetId("")
           setPromptVersionId("")
+          toast.success("Evaluation started")
           onRunStarted()
         },
+        onError: (e) => toast.error((e as Error)?.message || "Failed to start run"),
       }
     )
   }

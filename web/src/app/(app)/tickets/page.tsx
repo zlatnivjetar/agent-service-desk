@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatRelativeTime, formatCategory } from "@/lib/format"
 import { cn } from "@/lib/utils"
+import { PageError } from "@/components/ui/page-error"
 import type { TicketListItem } from "@/types/api"
 
 // --- Badge helpers ---
@@ -134,7 +135,7 @@ function TicketQueueContent() {
     perPage,
   } = useTicketFilters()
 
-  const { data, isLoading } = useTickets({
+  const { data, isLoading, isError, refetch } = useTickets({
     page,
     per_page: perPage,
     status: filters.status,
@@ -151,6 +152,10 @@ function TicketQueueContent() {
 
   function handleRowClick(ticket: TicketListItem) {
     router.push(`/tickets/${ticket.id}`)
+  }
+
+  if (isError) {
+    return <PageError message="Failed to load tickets." onRetry={() => refetch()} />
   }
 
   return (

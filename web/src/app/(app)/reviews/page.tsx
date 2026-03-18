@@ -5,9 +5,11 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { CheckCircle2, ExternalLink, LoaderCircle } from "lucide-react"
 
+import { toast } from "sonner"
 import { useReviewQueue, useReviewDraftFromQueue } from "@/hooks/use-review-queue"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { Button } from "@/components/ui/button"
+import { PageError } from "@/components/ui/page-error"
 import { Card, CardContent } from "@/components/ui/card"
 import {
   Dialog,
@@ -37,7 +39,7 @@ function ReviewQueueContent() {
   const page = Math.max(1, Number(searchParams.get("page") ?? "1"))
 
   const { data: user, isPending: userPending } = useCurrentUser()
-  const { data, isLoading } = useReviewQueue(
+  const { data, isLoading, isError, refetch } = useReviewQueue(
     { page, per_page: 20 },
     { enabled: !userPending && user?.role !== "client_user" }
   )
@@ -53,6 +55,10 @@ function ReviewQueueContent() {
         </p>
       </div>
     )
+  }
+
+  if (isError) {
+    return <PageError message="Failed to load review queue." onRetry={() => refetch()} />
   }
 
   function setPage(newPage: number) {
@@ -161,11 +167,17 @@ function ReviewCard({ item }: { item: DraftQueueItem }) {
   const isPending = reviewMutation.isPending
 
   function handleApprove() {
-    reviewMutation.mutate({ action: "approved" })
+    reviewMutation.mutate({ action: "approved" }, {
+      onSuccess: () => toast.success("Draft approved"),
+      onError: (e) => toast.error((e as Error)?.message || "Action failed"),
+    })
   }
 
   function handleEscalate() {
-    reviewMutation.mutate({ action: "escalated" })
+    reviewMutation.mutate({ action: "escalated" }, {
+      onSuccess: () => toast.success("Draft escalated"),
+      onError: (e) => toast.error((e as Error)?.message || "Action failed"),
+    })
   }
 
   function handleReject() {
@@ -175,7 +187,9 @@ function ReviewCard({ item }: { item: DraftQueueItem }) {
         onSuccess: () => {
           setRejectOpen(false)
           setRejectReason("")
+          toast.success("Draft rejected")
         },
+        onError: (e) => toast.error((e as Error)?.message || "Action failed"),
       }
     )
   }

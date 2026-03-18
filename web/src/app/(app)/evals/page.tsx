@@ -7,13 +7,14 @@ import { RunEvalForm } from "@/components/eval/run-eval-form"
 import { EvalRunsList } from "@/components/eval/eval-runs-list"
 import { EvalComparisonView } from "@/components/eval/eval-comparison"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { PageLoading } from "@/components/ui/page-loading"
 
 export default function EvalsPage() {
   const { data: user, isPending } = useCurrentUser()
   const [activeTab, setActiveTab] = useState("run")
   const [selectedRunIds, setSelectedRunIds] = useState<string[]>([])
 
-  if (isPending) return null
+  if (isPending) return <PageLoading />
 
   if (user?.role !== "team_lead") {
     return (

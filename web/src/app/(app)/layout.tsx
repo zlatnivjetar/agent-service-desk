@@ -3,6 +3,8 @@ import { Separator } from "@/components/ui/separator"
 import { AppSidebar } from "@/components/app-sidebar"
 import { PageBreadcrumb } from "@/components/page-breadcrumb"
 import { Providers } from "@/components/providers"
+import { ErrorBoundary } from "@/components/error-boundary"
+import { Toaster } from "@/components/ui/sonner"
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -16,10 +18,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <PageBreadcrumb />
           </header>
           <main className="flex flex-1 flex-col gap-4 p-4">
-            {children}
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
           </main>
         </SidebarInset>
       </SidebarProvider>
+      <Toaster />
     </Providers>
   )
 }

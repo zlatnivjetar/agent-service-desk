@@ -2,6 +2,7 @@
 
 import { LoaderCircle, ShieldAlert } from "lucide-react"
 
+import { toast } from "sonner"
 import { useTriageTicket } from "@/hooks/use-ticket-detail"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -64,7 +65,10 @@ export function TriagePanel({
             <p className="text-sm text-muted-foreground">Not triaged yet.</p>
             {canRunTriage && (
               <Button
-                onClick={() => triageTicket.mutate()}
+                onClick={() => triageTicket.mutate(undefined, {
+                  onSuccess: () => toast.success("Triage complete"),
+                  onError: (e) => toast.error(getErrorMessage(e, "Failed to run triage")),
+                })}
                 disabled={triageTicket.isPending}
                 className="cursor-pointer bg-[#0D9488] text-white hover:bg-[#0A7C72]"
               >
