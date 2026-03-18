@@ -47,6 +47,7 @@ TRIAGE_RESPONSE_SCHEMA: dict[str, Any] = {
         "urgency",
         "suggested_team",
         "escalation_suggested",
+        "escalation_reason",
         "confidence",
     ],
     "additionalProperties": False,

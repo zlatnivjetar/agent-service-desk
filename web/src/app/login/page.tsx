@@ -11,6 +11,18 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  async function signInAs(email: string, password: string) {
+    setLoading(true);
+    setError("");
+    const { error: signInError } = await authClient.signIn.email({ email, password });
+    if (signInError) {
+      setError(signInError.message ?? "Login failed");
+      setLoading(false);
+    } else {
+      router.push("/tickets");
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -87,6 +99,28 @@ export default function LoginPage() {
             {loading ? "Signing in…" : "Sign in"}
           </button>
         </form>
+
+        <div className="mt-6">
+          <p className="mb-2 text-xs font-medium text-zinc-400 uppercase tracking-wide">Quick login</p>
+          <div className="flex flex-col gap-2">
+            {[
+              { label: "Agent", email: "agent@demo.com", password: "agent123" },
+              { label: "Lead", email: "lead@demo.com", password: "lead123" },
+              { label: "Client", email: "client@demo.com", password: "client123" },
+            ].map(({ label, email, password }) => (
+              <button
+                key={label}
+                type="button"
+                disabled={loading}
+                onClick={() => signInAs(email, password)}
+                className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-700 transition-colors hover:bg-zinc-100 disabled:opacity-50 cursor-pointer text-left"
+              >
+                <span className="font-medium">{label}</span>
+                <span className="ml-2 text-zinc-400">{email}</span>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

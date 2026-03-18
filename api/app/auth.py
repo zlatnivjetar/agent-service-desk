@@ -13,6 +13,7 @@ class CurrentUser(BaseModel):
     org_id: str
     workspace_id: str
     role: str
+    name: str = ""
 
 
 def get_current_user(
@@ -36,6 +37,7 @@ def get_current_user(
             org_id=payload["org_id"],
             workspace_id=payload["workspace_id"],
             role=payload["role"],
+            name=payload.get("name", ""),
         )
     except KeyError as e:
         raise HTTPException(

@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 4C: Ticket Detail Page**
+**→ Milestone 4D: Review Queue Page**
 
 Implementation plans:
 - Part 1 (Milestones 1–3): `docs/implementation-plan.md`
@@ -85,4 +85,3 @@ When I type exactly **COMPLETED**:
 4. Commit with message: `milestone <ID>: <brief description>`
 
 Only the exact standalone input **COMPLETED** triggers this.
-

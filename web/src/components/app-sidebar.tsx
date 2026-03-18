@@ -148,7 +148,7 @@ export function AppSidebar() {
               >
                 <Avatar className="h-8 w-8 rounded-lg">
                   <AvatarFallback className="rounded-lg bg-[#0D9488] text-white text-xs">
-                    {user ? user.user_id.slice(0, 2).toUpperCase() : "…"}
+                    {user?.name ? user.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) : "…"}
                   </AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight gap-1">
@@ -159,7 +159,7 @@ export function AppSidebar() {
                     </>
                   ) : (
                     <>
-                      <span className="truncate font-semibold text-xs">{user?.user_id}</span>
+                      <span className="truncate font-semibold text-xs">{user?.name || user?.user_id}</span>
                       {role && (
                         <Badge variant="secondary" className="text-xs px-1 py-0 w-fit">
                           {roleLabel(role)}

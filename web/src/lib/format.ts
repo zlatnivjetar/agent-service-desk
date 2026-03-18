@@ -1,6 +1,6 @@
 export function formatRelativeTime(dateString: string): string {
   const seconds = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000)
-  if (seconds < 60) return `${seconds}s ago`
+  if (seconds < 60) return `${Math.max(seconds, 0)}s ago`
   const minutes = Math.floor(seconds / 60)
   if (minutes < 60) return `${minutes}m ago`
   const hours = Math.floor(minutes / 60)
@@ -13,9 +13,19 @@ export function formatRelativeTime(dateString: string): string {
 }
 
 export function formatCategory(value: string | null | undefined): string {
-  if (!value) return "—"
+  if (!value) return "-"
   return value
     .split("_")
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ")
+}
+
+export function formatDateTime(dateString: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(dateString))
 }

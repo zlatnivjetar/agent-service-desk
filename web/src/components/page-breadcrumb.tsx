@@ -34,8 +34,8 @@ export function PageBreadcrumb() {
   }
 
   if (segments.length > 1) {
-    // Second segment — treat as detail page
-    crumbs.push({ label: "Detail" })
+    const id = segments[1]
+    crumbs.push({ label: `#${id.slice(0, 8)}` })
   }
 
   return (

@@ -576,3 +576,40 @@ Appended automatically when COMPLETED is triggered in Claude Code.
 - Child-table RLS policies (`message_isolation`, `assignment_isolation`, etc.) had explicit `t.org_id = current_org_id()` checks that blocked agents from seeing cross-org tickets even after `ticket_isolation` was fixed. Removed those — EXISTS subqueries now inherit the ticket scope automatically via RLS.
 
 ---
+
+## Milestone 4C — Ticket Detail Page
+**Date:** 2026-03-18
+
+### What changed
+- Created `web/src/app/(app)/tickets/[id]/page.tsx` — two-column layout: left (header, message thread, reply box), right (triage, evidence, draft, actions panels) hidden for `client_user`
+- Created `web/src/hooks/use-ticket-detail.ts` — TanStack Query hooks: `useTicketDetail`, `useUpdateTicket`, `useAddMessage`, `useAssignTicket`, `useTriageTicket`, `useGenerateDraft`, `useRedraft`, `useReviewDraft`
+- Created `web/src/components/ticket/ticket-header.tsx` — subject, org name, assignee widget, status/priority/category/team/SLA badges, created/updated timestamps
+- Created `web/src/components/ticket/message-thread.tsx` — scrollable thread, auto-scrolls to bottom on new message, sender-type-based background tinting (teal for agent/system, amber for internal, neutral for client), full datetime on hover
+- Created `web/src/components/ticket/reply-box.tsx` — textarea + send button, internal note toggle for agents/leads
+- Created `web/src/components/ticket/triage-panel.tsx` — runs AI triage, displays predicted category/priority/team/confidence, escalation flag
+- Created `web/src/components/ticket/draft-panel.tsx` — generate/redraft buttons, draft body display, send-ready badge
+- Created `web/src/components/ticket/evidence-panel.tsx` — shows RAG evidence chunks returned from draft generation, source doc titles
+- Created `web/src/components/ticket/ticket-actions.tsx` — status/priority/category/team dropdowns, assign dialog
+- Created `web/src/components/ticket/ticket-ui.tsx` — shared helpers: `StatusBadge`, `PriorityBadge`, `SenderBadge`, `formatEnumLabel`, `getInitials`, `getSlaLabel`, `isPrivilegedRole`, `getErrorStatus`, `getErrorMessage`
+- Added `web/src/components/ui/dialog.tsx`, `scroll-area.tsx`, `textarea.tsx`, `alert.tsx`
+- Fixed `api/app/pipelines/triage.py` — added `escalation_reason` to `required` in the JSON schema (OpenAI structured outputs require all properties to be listed)
+- Updated `web/src/components/page-breadcrumb.tsx` — detail pages show `#<short-uuid>` instead of generic "Detail"
+- Updated `web/src/lib/format.ts` — added `formatDateTime` utility
+
+### Key decisions
+- Evidence chunks are local state in the page component, not in the query cache — they come back only on draft generation response, not on ticket fetch, so caching them server-side would require an extra round-trip
+- `isPrivilegedRole` gates the entire right-hand panel; `client_user` sees only header + thread + reply box
+- Triage predictions are never written to ticket fields — stored separately in `ticket_predictions`, applied only on agent approval
+- Message sender-type styling uses `sender_type` field (not current-user comparison) — avoids needing to pass auth user into every message component; works correctly from any role's perspective
+
+### Key files
+- `web/src/app/(app)/tickets/[id]/page.tsx` — page orchestration, evidence state, scroll-to-actions
+- `web/src/hooks/use-ticket-detail.ts` — all mutations and ticket query
+- `web/src/components/ticket/` — all panel components
+- `api/app/pipelines/triage.py` — schema fix
+
+### Gotchas
+- OpenAI structured outputs with `additionalProperties: false` require every `properties` key to also appear in `required` — `escalation_reason` was missing, causing 400 errors on every triage call
+- `PageBreadcrumb` lives in the shared layout and has no access to TanStack Query or server data; showing the short UUID from the URL path is the correct pattern rather than fetching ticket subject
+
+---

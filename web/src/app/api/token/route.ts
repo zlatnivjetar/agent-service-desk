@@ -19,8 +19,9 @@ export async function POST(request: NextRequest) {
       org_id: string;
       workspace_id: string;
       role: string;
+      name: string;
     }>(
-      `SELECT u.id AS user_id, m.org_id, wm.workspace_id, wm.role
+      `SELECT u.id AS user_id, m.org_id, wm.workspace_id, wm.role, u.full_name AS name
        FROM users u
        JOIN memberships m ON m.user_id = u.id
        JOIN workspace_memberships wm ON wm.user_id = u.id
@@ -36,10 +37,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { user_id, org_id, workspace_id, role } = rows[0];
+    const { user_id, org_id, workspace_id, role, name } = rows[0];
     const secret = new TextEncoder().encode(process.env.JWT_SECRET);
 
-    const token = await new SignJWT({ user_id, org_id, workspace_id, role })
+    const token = await new SignJWT({ user_id, org_id, workspace_id, role, name })
       .setProtectedHeader({ alg: "HS256" })
       .setExpirationTime("1h")
       .sign(secret);

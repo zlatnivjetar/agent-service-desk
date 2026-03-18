@@ -1,5 +1,20 @@
 // TypeScript interfaces mirroring FastAPI Pydantic schemas
 
+export type UserRole = "client_user" | "support_agent" | "team_lead"
+export type TicketStatus =
+  | "new"
+  | "open"
+  | "pending_customer"
+  | "pending_internal"
+  | "resolved"
+  | "closed"
+export type TicketPriority = "low" | "medium" | "high" | "critical"
+export type DraftReviewAction =
+  | "approved"
+  | "edited_and_approved"
+  | "rejected"
+  | "escalated"
+
 export interface PaginatedResponse<T> {
   items: T[]
   total: number
@@ -12,7 +27,8 @@ export interface CurrentUser {
   user_id: string
   org_id: string
   workspace_id: string
-  role: string
+  role: UserRole
+  name: string
 }
 
 // Tickets
@@ -36,7 +52,7 @@ export interface TicketMessage {
   id: string
   sender_id?: string | null
   sender_name?: string | null
-  sender_type: string
+  sender_type: "customer" | "agent" | "system"
   body: string
   is_internal: boolean
   created_at: string
@@ -64,11 +80,38 @@ export interface TicketDraft {
   created_at: string
 }
 
+export interface EvidenceChunk {
+  chunk_id: string
+  document_id: string
+  document_title: string
+  content: string
+  similarity: number
+  chunk_index: number
+}
+
+export interface DraftGenerationResponse extends TicketDraft {
+  ticket_id: string
+  prompt_version_id: string
+  latency_ms?: number | null
+  token_usage?: Record<string, number> | null
+  estimated_cost_cents?: number | null
+  evidence_chunks: EvidenceChunk[]
+}
+
+export interface TicketPredictionRecord extends TicketPrediction {
+  ticket_id: string
+  prompt_version_id: string
+  latency_ms?: number | null
+  token_usage?: Record<string, number> | null
+  estimated_cost_cents?: number | null
+}
+
 export interface TicketAssignment {
   id: string
-  assignee_id: string
-  assignee_name?: string | null
-  assigned_at: string
+  assigned_to: string
+  assigned_by?: string | null
+  team?: string | null
+  created_at: string
 }
 
 export interface TicketDetail extends TicketListItem {
@@ -86,13 +129,22 @@ export interface DraftQueueItem {
   body: string
   confidence: number
   approval_outcome?: string | null
-  time_since_generation: string
+  time_since_generation: number
   created_at: string
 }
 
 export interface ApprovalRequest {
-  outcome: "approved" | "rejected" | "escalated"
-  notes?: string | null
+  action: DraftReviewAction
+  edited_body?: string | null
+  reason?: string | null
+}
+
+export interface ApprovalResponse {
+  id: string
+  action: string
+  acted_by: string
+  reason?: string | null
+  created_at: string
 }
 
 // Knowledge
