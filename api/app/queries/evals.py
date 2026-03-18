@@ -165,3 +165,74 @@ def list_prompt_versions(conn: Connection) -> list[dict]:
         ORDER BY created_at DESC
         """
     ).fetchall()
+
+
+def get_eval_run_for_execution(conn: Connection, run_id: str) -> Optional[dict]:
+    """Get run + prompt version content needed to execute the run."""
+    return conn.execute(
+        """
+        SELECT er.id, er.eval_set_id, er.prompt_version_id, pv.content AS prompt_content
+        FROM eval_runs er
+        JOIN prompt_versions pv ON pv.id = er.prompt_version_id
+        WHERE er.id = %s
+        """,
+        [run_id],
+    ).fetchone()
+
+
+def get_eval_examples_for_run(conn: Connection, eval_set_id: str) -> list[dict]:
+    """Get all examples in the set for processing."""
+    return conn.execute(
+        """
+        SELECT id, type, input_text, expected_category, expected_team, expected_chunk_ids
+        FROM eval_examples
+        WHERE eval_set_id = %s
+        ORDER BY created_at ASC
+        """,
+        [eval_set_id],
+    ).fetchall()
+
+
+def insert_eval_result(
+    conn: Connection,
+    run_id: str,
+    example_id: str,
+    passed: bool,
+    model_output: dict,
+    expected_output: dict | None,
+    notes: str | None,
+) -> None:
+    """Insert a single eval result."""
+    from psycopg.types.json import Jsonb
+
+    conn.execute(
+        """
+        INSERT INTO eval_results (eval_run_id, eval_example_id, passed, model_output, expected_output, notes)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        """,
+        [run_id, example_id, passed, Jsonb(model_output), Jsonb(expected_output) if expected_output is not None else None, notes],
+    )
+
+
+def update_eval_run_completed(
+    conn: Connection, run_id: str, passed: int, failed: int, metrics: dict
+) -> None:
+    """Update run to completed with final counts and metrics."""
+    from psycopg.types.json import Jsonb
+
+    conn.execute(
+        """
+        UPDATE eval_runs
+        SET status = 'completed', passed = %s, failed = %s, metrics = %s, completed_at = NOW()
+        WHERE id = %s
+        """,
+        [passed, failed, Jsonb(metrics), run_id],
+    )
+
+
+def update_eval_run_status(conn: Connection, run_id: str, status: str) -> None:
+    """Update run status (e.g., 'running', 'failed')."""
+    conn.execute(
+        "UPDATE eval_runs SET status = %s WHERE id = %s",
+        [status, run_id],
+    )

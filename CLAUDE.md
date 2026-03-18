@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 5A: Eval Runner Backend**
+**→ Milestone 5B: Eval Console Frontend**
 
 Implementation plans:
 - Part 1 (Milestones 1–3): `docs/implementation-plan.md`

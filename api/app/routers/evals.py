@@ -1,11 +1,12 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from psycopg import Connection
 
 from app.auth import CurrentUser, get_current_user
 from app.deps import get_rls_db
+from app.pipelines.evaluation import run_evaluation
 from app.queries import evals as q
 from app.schemas.common import PaginatedResponse
 from app.schemas.evals import (
@@ -132,15 +133,24 @@ def compare_eval_runs(
 @router.post("/runs", response_model=EvalRunListItem, status_code=status.HTTP_201_CREATED)
 def create_eval_run(
     body: EvalRunCreate,
+    background_tasks: BackgroundTasks,
     user: Annotated[CurrentUser, Depends(get_current_user)],
-    db: Annotated[Connection, Depends(get_rls_db)],
 ):
     require_role(user, ["team_lead"])
-    total = q.count_examples_in_set(db, str(body.eval_set_id))
-    run = q.create_eval_run(db, str(body.eval_set_id), str(body.prompt_version_id), total)
 
-    # Fetch the joined row so we can return eval_set_name and prompt_version_name
-    full_run = q.get_eval_run(db, str(run["id"]))
+    # Use _lead_conn (not get_rls_db) so the transaction commits before the
+    # background task fires. get_rls_db's transaction commits AFTER background
+    # tasks run (Starlette awaits them inside response.__call__), which means
+    # the run record would be invisible to the background task.
+    from app.pipelines.evaluation import _lead_conn
+
+    with _lead_conn() as conn:
+        total = q.count_examples_in_set(conn, str(body.eval_set_id))
+        run = q.create_eval_run(conn, str(body.eval_set_id), str(body.prompt_version_id), total)
+        full_run = q.get_eval_run(conn, str(run["id"]))
+    # Transaction committed — run is visible to the background task.
+
+    background_tasks.add_task(run_evaluation, str(run["id"]))
     return EvalRunListItem.model_validate(full_run)
 
 

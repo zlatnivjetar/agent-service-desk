@@ -667,3 +667,35 @@ Appended automatically when COMPLETED is triggered in Claude Code.
 - Role flash fix requires returning `null` (not a skeleton) for the brief loading window — a skeleton would be equally misleading for unauthorized users, and `useCurrentUser` resolves quickly from TanStack Query cache on subsequent navigations
 
 ---
+
+## Milestone 5A — Eval Runner Backend
+**Date:** 2026-03-18
+
+### What changed
+- Created `api/app/pipelines/evaluation.py` — background task that executes an eval run end-to-end
+- Added 5 query functions to `api/app/queries/evals.py`: `get_eval_run_for_execution`, `get_eval_examples_for_run`, `insert_eval_result`, `update_eval_run_completed`, `update_eval_run_status`
+- Updated `api/app/routers/evals.py`: `create_eval_run` now accepts `BackgroundTasks` and fires `run_evaluation` after creating the run record
+
+### Key decisions
+- **`_lead_conn()` context manager** — eval tables have RLS policies (`current_user_role() = 'team_lead'`) and on Neon even `neondb_owner` is subject to RLS (not a true superuser). All background task DB access uses `SET LOCAL ROLE rls_user` + `set_config('app.user_role', 'team_lead', TRUE)`.
+- **`create_eval_run` bypasses `get_rls_db`** — Starlette awaits background tasks *inside* `response.__call__`, which runs before the `AsyncExitStack` (dependency cleanup) commits the `get_rls_db` transaction. The route uses `_lead_conn()` directly so the INSERT commits before the background task fires.
+- **Per-example error isolation** — each example result is written in its own connection; an exception in one example is caught, recorded as `passed=False` with a `notes` error message, and the run continues.
+- **Citation eval uses first workspace** — `eval_examples` has no workspace foreign key, so the runner queries the first workspace and runs a raw pgvector cosine search against indexed chunks.
+- **Metrics only set at completion** — `passed`/`failed` counts and `metrics` JSON are written in a single `update_eval_run_completed` call at the end; intermediate polling shows 0/0 counts but growing `results[]`.
+
+### Key files
+- `api/app/pipelines/evaluation.py` — `run_evaluation()` entry point, `_lead_conn()` context manager, per-type processors (`_run_classification`, `_run_routing`, `_run_citation`), `_compute_metrics()`
+- `api/app/queries/evals.py` — added execution-time query functions
+- `api/app/routers/evals.py` — `create_eval_run` wired to background task
+
+### Verified (real API, not mock)
+- Classification Accuracy set (60 examples) against triage-v2: **90% accuracy** (54/60 passed)
+- Same set against triage-v1: **86.7% accuracy** (52/60 passed)
+- Compare endpoint returns real metric diffs between both completed runs
+- 6 failures were genuine model disagreements (e.g., `api_issue` vs `bug_report`), no errors
+
+### Gotchas
+- Neon managed Postgres: `neondb_owner` is NOT a bypass-RLS superuser — even with `ENABLE ROW LEVEL SECURITY` (not FORCE), background tasks must set up `rls_user` role explicitly
+- FastAPI/Starlette background task ordering: `BackgroundTasks` runs inside `response.__call__` before `AsyncExitStack.__aexit__` — the creating route's transaction hasn't committed when the task starts. Fix: commit in the route via an explicit connection, not `get_rls_db`
+
+---
