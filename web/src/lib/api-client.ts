@@ -1,14 +1,66 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const DEFAULT_LOCAL_API_URL = "http://localhost:8000";
+
+function trimTrailingSlash(url: string) {
+  return url.replace(/\/+$/, "");
+}
+
+function isLocalNextOrigin(url: string) {
+  try {
+    const parsed = new URL(url);
+    return (
+      parsed.port === "3000" &&
+      (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1")
+    );
+  } catch {
+    return false;
+  }
+}
+
+function resolveApiUrl() {
+  const configuredUrl = trimTrailingSlash(
+    process.env.NEXT_PUBLIC_API_URL ?? DEFAULT_LOCAL_API_URL,
+  );
+
+  if (isLocalNextOrigin(configuredUrl)) {
+    if (typeof window !== "undefined") {
+      console.warn(
+        "NEXT_PUBLIC_API_URL points to the Next.js app on :3000. Falling back to http://localhost:8000 for backend API requests.",
+      );
+    }
+    return DEFAULT_LOCAL_API_URL;
+  }
+
+  return configuredUrl;
+}
+
+export const API_URL = resolveApiUrl();
 
 let cachedToken: string | null = null;
 let tokenExpiry: number = 0;
+
+function redirectToLogin() {
+  clearTokenCache();
+  if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+    window.location.replace("/login");
+  }
+}
 
 export async function getToken(): Promise<string> {
   if (cachedToken && Date.now() < tokenExpiry - 30_000) {
     return cachedToken;
   }
   const res = await fetch("/api/token", { method: "POST" });
-  if (!res.ok) throw new Error("Failed to get API token");
+  if (!res.ok) {
+    if (res.status === 401 || res.status === 403) {
+      redirectToLogin();
+    }
+
+    const errorBody = await res.json().catch(() => ({ error: "Failed to get API token" }));
+    throw Object.assign(new Error(errorBody.error ?? "Failed to get API token"), {
+      status: res.status,
+      body: errorBody,
+    });
+  }
   const data = await res.json();
   cachedToken = data.token as string;
   // Decode exp from JWT payload (no signature verification needed client-side)
@@ -34,6 +86,9 @@ async function request<T>(
 
   if (!res.ok) {
     const errorBody = await res.json().catch(() => ({ detail: res.statusText }));
+    if (res.status === 401 || res.status === 403) {
+      redirectToLogin();
+    }
     throw Object.assign(new Error(errorBody.detail ?? "Request failed"), {
       status: res.status,
       body: errorBody,

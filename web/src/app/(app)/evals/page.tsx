@@ -6,6 +6,7 @@ import { useCurrentUser } from "@/hooks/use-current-user"
 import { RunEvalForm } from "@/components/eval/run-eval-form"
 import { EvalRunsList } from "@/components/eval/eval-runs-list"
 import { EvalComparisonView } from "@/components/eval/eval-comparison"
+import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PageLoading } from "@/components/ui/page-loading"
 
@@ -38,9 +39,9 @@ export default function EvalsPage() {
   const compareDisabled = selectedRunIds.length !== 2
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-[#0F172A]">Eval Console</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Eval Console</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Run evaluations and compare prompt versions.
         </p>
@@ -61,9 +62,12 @@ export default function EvalsPage() {
           >
             Compare
             {selectedRunIds.length > 0 && (
-              <span className="ml-1.5 rounded-full bg-[#0D9488] px-1.5 py-0.5 text-[10px] font-semibold text-white">
+              <Badge
+                className="ml-1.5 px-2 text-[10px]"
+                dotClassName="bg-primary"
+              >
                 {selectedRunIds.length}/2
-              </span>
+              </Badge>
             )}
           </TabsTrigger>
         </TabsList>

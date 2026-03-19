@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 
 import { toast } from "sonner"
 import {
@@ -26,25 +26,44 @@ import {
 } from "@/components/ticket/ticket-ui"
 
 export function TicketActions({ ticket }: { ticket: TicketDetail }) {
+  const { data: workspaceUsers } = useWorkspaceUsers()
   const updateTicket = useUpdateTicket(ticket.id)
   const assignTicket = useAssignTicket(ticket.id)
-  const { data: workspaceUsers } = useWorkspaceUsers()
 
+  return (
+    <TicketActionsContent
+      key={`${ticket.id}:${ticket.status}:${ticket.priority}:${ticket.assignee_id ?? ""}`}
+      ticket={ticket}
+      workspaceUsers={workspaceUsers ?? []}
+      updateTicket={updateTicket}
+      assignTicket={assignTicket}
+    />
+  )
+}
+
+type TicketActionsMutation = ReturnType<typeof useUpdateTicket>
+type TicketAssignMutation = ReturnType<typeof useAssignTicket>
+
+function TicketActionsContent({
+  ticket,
+  workspaceUsers,
+  updateTicket,
+  assignTicket,
+}: {
+  ticket: TicketDetail
+  workspaceUsers: NonNullable<ReturnType<typeof useWorkspaceUsers>["data"]>
+  updateTicket: TicketActionsMutation
+  assignTicket: TicketAssignMutation
+}) {
   const [statusValue, setStatusValue] = useState(ticket.status)
   const [priorityValue, setPriorityValue] = useState(ticket.priority)
   const [assigneeValue, setAssigneeValue] = useState(ticket.assignee_id ?? "")
 
-  useEffect(() => {
-    setStatusValue(ticket.status)
-    setPriorityValue(ticket.priority)
-    setAssigneeValue(ticket.assignee_id ?? "")
-  }, [ticket.assignee_id, ticket.priority, ticket.status])
-
-  const assigneeOptions = workspaceUsers?.map((u) => ({
+  const assigneeOptions = workspaceUsers.map((u) => ({
     id: u.id,
     label: u.full_name,
     role: u.role,
-  })) ?? []
+  }))
 
   return (
     <Card id="ticket-actions">
@@ -162,7 +181,7 @@ export function TicketActions({ ticket }: { ticket: TicketDetail }) {
               onError: (e) => toast.error(getErrorMessage(e, "Failed to update ticket")),
             })}
             disabled={ticket.status === "resolved" || updateTicket.isPending}
-            className="cursor-pointer bg-[#0D9488] text-white hover:bg-[#0A7C72]"
+            className="cursor-pointer"
           >
             Resolve
           </Button>
@@ -208,7 +227,7 @@ function ActionRow({
   return (
     <div className="space-y-2">
       <p className="text-sm font-medium text-foreground">{label}</p>
-      <div className="flex items-center gap-2">{control}</div>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">{control}</div>
     </div>
   )
 }

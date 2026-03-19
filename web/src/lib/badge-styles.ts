@@ -1,97 +1,116 @@
 import type { TicketStatus, TicketPriority } from "@/types/api"
 
+export type BadgeTone =
+  | "brand"
+  | "info"
+  | "warning"
+  | "success"
+  | "danger"
+  | "neutral"
+
 export type BadgeStyleEntry = {
-  className: string
   label: string
+  tone: BadgeTone
+  dotClassName?: string
+  pulseDot?: boolean
+}
+
+export const BADGE_TONE_DOT_CLASSNAMES: Record<BadgeTone, string> = {
+  brand: "bg-primary",
+  info: "bg-info",
+  warning: "bg-warning",
+  success: "bg-success",
+  danger: "bg-destructive",
+  neutral: "bg-neutral",
 }
 
 // Ticket status
 export const TICKET_STATUS_STYLES: Record<TicketStatus, BadgeStyleEntry> = {
-  new: { className: "bg-primary text-primary-foreground", label: "New" },
-  open: { className: "bg-blue-100 text-blue-800 border-blue-200", label: "Open" },
-  pending_customer: { className: "border-border text-foreground", label: "Pending Customer" },
-  pending_internal: { className: "border-border text-foreground", label: "Pending Internal" },
-  resolved: { className: "bg-success/10 text-success border-success/20", label: "Resolved" },
-  closed: { className: "bg-muted text-muted-foreground border-transparent", label: "Closed" },
+  new: { label: "New", tone: "brand" },
+  open: { label: "Open", tone: "brand" },
+  pending_customer: { label: "Pending Customer", tone: "warning" },
+  pending_internal: { label: "Pending Internal", tone: "warning" },
+  resolved: { label: "Resolved", tone: "success" },
+  closed: { label: "Closed", tone: "neutral" },
 }
 
 // Ticket priority
 export const TICKET_PRIORITY_STYLES: Record<TicketPriority, BadgeStyleEntry> = {
-  low: { className: "bg-muted text-muted-foreground border-transparent", label: "Low" },
-  medium: { className: "bg-secondary text-secondary-foreground border-transparent", label: "Medium" },
-  high: { className: "bg-warning/10 text-warning border-warning/20", label: "High" },
-  critical: { className: "bg-destructive/10 text-destructive border-destructive/20", label: "Critical" },
+  low: { label: "Low", tone: "neutral" },
+  medium: { label: "Medium", tone: "neutral" },
+  high: { label: "High", tone: "warning" },
+  critical: { label: "Critical", tone: "danger" },
 }
 
 // Knowledge doc status
 export const KNOWLEDGE_STATUS_STYLES: Record<string, BadgeStyleEntry> = {
-  pending: { className: "border-border text-muted-foreground", label: "Pending" },
-  processing: { className: "bg-blue-100 text-blue-800 border-blue-200", label: "Processing" },
-  indexed: { className: "bg-success/10 text-success border-success/20", label: "Indexed" },
-  failed: { className: "bg-destructive/10 text-destructive border-destructive/20", label: "Failed" },
+  pending: { label: "Pending", tone: "warning" },
+  processing: { label: "Processing", tone: "info", pulseDot: true },
+  indexed: { label: "Indexed", tone: "success" },
+  failed: { label: "Failed", tone: "danger" },
 }
 
 // Draft approval outcome
 export const APPROVAL_OUTCOME_STYLES: Record<string, BadgeStyleEntry> = {
-  approved: { className: "bg-success/10 text-success border-success/20", label: "Approved" },
-  edited_and_approved: { className: "bg-success/10 text-success border-success/20", label: "Edited And Approved" },
-  rejected: { className: "bg-destructive/10 text-destructive border-destructive/20", label: "Rejected" },
-  escalated: { className: "bg-warning/10 text-warning border-warning/20", label: "Escalated" },
-  pending: { className: "border-border text-foreground", label: "Pending" },
+  approved: { label: "Approved", tone: "success" },
+  edited_and_approved: { label: "Edited + approved", tone: "success" },
+  rejected: { label: "Rejected", tone: "danger" },
+  escalated: { label: "Escalated", tone: "warning" },
+  pending: { label: "Pending", tone: "warning" },
 }
 
 // Confidence level
 export function getConfidenceStyle(confidence: number) {
   if (confidence >= 0.8) {
     return {
-      className: "bg-success/10 text-success border-success/20",
+      tone: "success" as const,
       barClassName: "bg-success",
-      label: "High confidence",
+      label: "Confidence",
     }
   }
   if (confidence >= 0.5) {
     return {
-      className: "bg-warning/10 text-warning border-warning/20",
+      tone: "warning" as const,
       barClassName: "bg-warning",
-      label: "Medium confidence",
+      label: "Confidence",
     }
   }
   return {
-    className: "bg-destructive/10 text-destructive border-destructive/20",
+    tone: "danger" as const,
     barClassName: "bg-destructive",
-    label: "Low confidence",
+    label: "Confidence",
   }
 }
 
 // Sender type
 export const SENDER_STYLES: Record<string, BadgeStyleEntry> = {
-  customer: { className: "bg-blue-100 text-blue-800 border-blue-200", label: "Customer" },
-  agent: { className: "bg-primary/10 text-primary border-primary/20", label: "Agent" },
-  system: { className: "bg-muted text-muted-foreground border-transparent", label: "System" },
+  customer: { label: "Customer", tone: "info" },
+  agent: { label: "Agent", tone: "brand" },
+  system: { label: "System", tone: "neutral" },
 }
 
 // Visibility
 export const VISIBILITY_STYLES: Record<string, BadgeStyleEntry> = {
-  internal: { className: "bg-secondary text-secondary-foreground border-transparent", label: "Internal" },
-  client_visible: { className: "bg-primary text-primary-foreground", label: "Client visible" },
+  internal: { label: "Internal", tone: "neutral" },
+  client_visible: { label: "Client visible", tone: "brand" },
 }
 
 // Eval run status
 export const EVAL_RUN_STATUS_STYLES: Record<string, BadgeStyleEntry> = {
-  completed: { className: "bg-success/10 text-success border-success/20", label: "Completed" },
-  running: { className: "animate-pulse bg-blue-100 text-blue-800 border-blue-200", label: "Running" },
-  failed: { className: "bg-destructive/10 text-destructive border-destructive/20", label: "Failed" },
+  completed: { label: "Completed", tone: "success" },
+  running: { label: "Running", tone: "info", pulseDot: true },
+  failed: { label: "Failed", tone: "danger" },
 }
 
 // User role
 export const ROLE_STYLES: Record<string, BadgeStyleEntry> = {
-  team_lead: { className: "bg-secondary text-secondary-foreground border-transparent", label: "Team Lead" },
-  support_agent: { className: "bg-secondary text-secondary-foreground border-transparent", label: "Agent" },
-  client_user: { className: "bg-secondary text-secondary-foreground border-transparent", label: "Client" },
+  team_lead: { label: "Team Lead", tone: "brand" },
+  support_agent: { label: "Agent", tone: "brand" },
+  client_user: { label: "Client", tone: "neutral" },
 }
 
 // Fallback for unknown values
 export const FALLBACK_STYLE: BadgeStyleEntry = {
-  className: "border-border text-foreground",
   label: "Unknown",
+  tone: "neutral",
 }

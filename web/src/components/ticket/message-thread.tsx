@@ -48,10 +48,10 @@ export function MessageThread({ messages }: { messages: TicketMessage[] }) {
                   className={cn(
                     "rounded-xl border p-4 transition-colors",
                     message.is_internal
-                      ? "border-amber-200 bg-amber-50/70 shadow-sm"
+                      ? "border-warning-border bg-warning-soft shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
                       : message.sender_type === "agent" || message.sender_type === "system"
-                        ? "border-teal-100 bg-teal-50/60"
-                        : "bg-background/80"
+                        ? "border-primary-border bg-primary-soft"
+                        : "border-border/80 bg-background"
                   )}
                 >
                   <div className="flex items-start gap-3">
@@ -66,8 +66,8 @@ export function MessageThread({ messages }: { messages: TicketMessage[] }) {
                         </span>
                         <SenderBadge senderType={message.sender_type} />
                         {message.is_internal && (
-                          <Badge className="border-amber-200 bg-amber-100 text-amber-900">
-                            Internal
+                          <Badge dotClassName="bg-warning">
+                            Internal note
                           </Badge>
                         )}
                         <span

@@ -69,7 +69,7 @@ function ReviewQueueContent() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       {/* Page header */}
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Review Queue</h1>
@@ -85,7 +85,7 @@ function ReviewQueueContent() {
         <div className="space-y-4">
           {Array.from({ length: 3 }).map((_, i) => (
             <Card key={i}>
-              <CardContent className="p-5">
+              <CardContent className="p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1 space-y-2">
                     <Skeleton className="h-4 w-48" />
@@ -197,7 +197,7 @@ function ReviewCard({ item }: { item: DraftQueueItem }) {
 
   return (
     <Card variant="interactive">
-      <CardContent className="p-5">
+      <CardContent className="p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           {/* Left section */}
           <div className="min-w-0 flex-1 space-y-2">
@@ -226,7 +226,7 @@ function ReviewCard({ item }: { item: DraftQueueItem }) {
                 size="sm"
                 onClick={handleApprove}
                 disabled={isPending}
-                className="cursor-pointer bg-[#F97316] text-white hover:bg-[#EA6A0A]"
+                className="cursor-pointer"
               >
                 {isPending ? <LoaderCircle className="size-3 animate-spin" /> : null}
                 Approve

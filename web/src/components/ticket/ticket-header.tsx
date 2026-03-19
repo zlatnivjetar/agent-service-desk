@@ -34,18 +34,18 @@ export function TicketHeader({
       <CardHeader className="gap-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-2">
-            <CardTitle className="text-2xl font-semibold tracking-tight text-[#0F172A]">
+            <CardTitle className="text-2xl font-semibold tracking-tight">
               {ticket.subject}
             </CardTitle>
             <p className="text-sm text-muted-foreground">{ticket.org_name ?? "Unknown organization"}</p>
           </div>
 
-          <div className="flex items-center gap-3 rounded-xl border bg-background/80 px-3 py-2">
+          <div className="flex w-full items-center gap-3 rounded-xl border bg-card px-4 py-3 sm:w-auto sm:min-w-[220px]">
             <Avatar size="lg">
               <AvatarFallback>{getInitials(ticket.assignee_name)}</AvatarFallback>
             </Avatar>
-            <div className="flex flex-col gap-1">
-              <span className="text-sm font-medium text-foreground">
+            <div className="min-w-0 flex flex-col gap-0.5">
+              <span className="truncate whitespace-nowrap text-sm font-semibold text-foreground">
                 {ticket.assignee_name ?? "Unassigned"}
               </span>
               {showAssignButton ? (
@@ -71,9 +71,9 @@ export function TicketHeader({
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={ticket.status} />
           <PriorityBadge priority={ticket.priority} />
-          <Badge variant="outline">{formatEnumLabel(ticket.category, "Uncategorized")}</Badge>
-          <Badge variant="outline">{formatEnumLabel(ticket.team, "No team")}</Badge>
-          <Badge className="border-primary/20 bg-primary/10 text-primary">{getSlaLabel(ticket.priority)}</Badge>
+          <Badge dotClassName="bg-neutral">{formatEnumLabel(ticket.category, "Uncategorized")}</Badge>
+          <Badge dotClassName="bg-neutral">{formatEnumLabel(ticket.team, "No team")}</Badge>
+          <Badge dotClassName="bg-primary">{getSlaLabel(ticket.priority)}</Badge>
         </div>
 
         <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">

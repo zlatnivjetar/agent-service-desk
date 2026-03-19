@@ -160,7 +160,7 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
             disabled={!canSubmit}
             className="cursor-pointer"
           >
-            {uploadMutation.isPending ? "Uploading…" : "Upload"}
+            {uploadMutation.isPending ? "Uploading..." : "Upload"}
           </Button>
         </DialogFooter>
       </DialogContent>

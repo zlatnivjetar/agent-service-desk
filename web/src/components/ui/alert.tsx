@@ -6,13 +6,15 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const alertVariants = cva(
-  "relative w-full rounded-xl border px-4 py-3 text-sm",
+  "relative w-full rounded-xl border px-4 py-3 text-sm shadow-[0_1px_2px_rgba(15,23,42,0.04)]",
   {
     variants: {
       variant: {
         default: "border-border bg-card text-card-foreground",
-        warning: "border-amber-200 bg-amber-50 text-amber-900",
-        destructive: "border-destructive/20 bg-destructive/10 text-destructive",
+        info: "border-info-border bg-info-soft text-card-foreground",
+        warning: "border-warning-border bg-warning-soft text-card-foreground",
+        destructive:
+          "border-destructive-border bg-destructive-soft text-card-foreground",
       },
     },
     defaultVariants: {
@@ -50,7 +52,7 @@ function AlertDescription({ className, ...props }: React.ComponentProps<"div">) 
   return (
     <div
       data-slot="alert-description"
-      className={cn("mt-1 text-sm opacity-90", className)}
+      className={cn("mt-1 text-sm text-muted-foreground", className)}
       {...props}
     />
   )

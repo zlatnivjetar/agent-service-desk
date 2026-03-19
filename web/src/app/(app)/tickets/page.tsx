@@ -139,11 +139,14 @@ function TicketQueueContent() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Tickets</h1>
-        {data && (
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {total.toLocaleString()} {total === 1 ? "ticket" : "tickets"}
-          </p>
-        )}
+        <p
+          aria-live="polite"
+          className="mt-0.5 min-h-5 text-sm text-muted-foreground"
+        >
+          {data
+            ? `${total.toLocaleString()} ${total === 1 ? "ticket" : "tickets"}`
+            : "\u00A0"}
+        </p>
       </div>
 
       {/* Filter bar */}
@@ -201,10 +204,6 @@ function TicketQueueContent() {
                 onSort={setSorting}
               />
             </TableHead>
-            <TableHead>Category</TableHead>
-            <TableHead>Assignee</TableHead>
-            <TableHead>Org</TableHead>
-            <TableHead>Confidence</TableHead>
             <TableHead>
               <SortableHeader
                 label="Created"
@@ -214,13 +213,17 @@ function TicketQueueContent() {
                 onSort={setSorting}
               />
             </TableHead>
+            <TableHead>Assignee</TableHead>
+            <TableHead>Org</TableHead>
+            <TableHead>Category</TableHead>
+            <TableHead>Confidence</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {isLoading ? (
             <DataTableSkeleton
               columns={8}
-              columnWidths={["w-64", "w-20", "w-16", "w-24", "w-28", "w-24", "w-10", "w-16"]}
+              columnWidths={["w-64", "w-20", "w-16", "w-16", "w-28", "w-24", "w-24", "w-10"]}
             />
           ) : tickets.length === 0 ? (
             <DataTableEmpty
@@ -239,15 +242,15 @@ function TicketQueueContent() {
               <TableRow
                 key={ticket.id}
                 onClick={() => handleRowClick(ticket)}
-                className="cursor-pointer"
+                className="group cursor-pointer"
               >
                 <TableCell className="font-medium max-w-0">
                   <span
-                    className="block truncate text-[#0D9488] hover:underline"
+                    className="block truncate text-foreground transition-colors duration-150 group-hover:text-primary group-hover:underline"
                     title={ticket.subject}
                   >
                     {ticket.subject.length > 60
-                      ? ticket.subject.slice(0, 60) + "…"
+                      ? `${ticket.subject.slice(0, 60)}...`
                       : ticket.subject}
                   </span>
                 </TableCell>
@@ -258,7 +261,7 @@ function TicketQueueContent() {
                   <TicketPriorityBadge priority={ticket.priority} />
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
-                  {formatCategory(ticket.category)}
+                  {formatRelativeTime(ticket.created_at)}
                 </TableCell>
                 <TableCell className="text-sm">
                   {ticket.assignee_name ?? (
@@ -266,17 +269,17 @@ function TicketQueueContent() {
                   )}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
-                  {ticket.org_name ?? "—"}
+                  {ticket.org_name ?? "-"}
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {formatCategory(ticket.category)}
                 </TableCell>
                 <TableCell className="text-sm">
                   {ticket.confidence != null ? (
                     `${Math.round(ticket.confidence * 100)}%`
                   ) : (
-                    <span className="text-muted-foreground">—</span>
+                    <span className="text-muted-foreground">-</span>
                   )}
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {formatRelativeTime(ticket.created_at)}
                 </TableCell>
               </TableRow>
             ))

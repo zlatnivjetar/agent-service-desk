@@ -18,18 +18,27 @@ export function FilterBar({
   className,
 }: FilterBarProps) {
   return (
-    <div className={cn("flex flex-wrap items-center gap-2", className)}>
-      {children}
-      {hasActiveFilters && onClear && (
+    <div
+      role="toolbar"
+      aria-label="Filters"
+      className={cn(
+        "flex flex-col gap-3 rounded-xl bg-card p-3 shadow-sm ring-1 ring-foreground/8 sm:flex-row sm:items-center sm:justify-between",
+        className
+      )}
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        {children}
+      </div>
+      {hasActiveFilters && onClear ? (
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
           onClick={onClear}
-          className="cursor-pointer"
+          className="cursor-pointer self-start sm:self-auto"
         >
           Clear filters
         </Button>
-      )}
+      ) : null}
     </div>
   )
 }

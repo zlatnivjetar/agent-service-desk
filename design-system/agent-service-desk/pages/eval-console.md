@@ -1,47 +1,30 @@
-# Eval Console Page Overrides
+# Eval Console Overrides
 
-> **PROJECT:** Agent Service Desk
-> **Generated:** 2026-03-17 12:20:34
-> **Page Type:** Dashboard / Data View
+## Purpose
 
-> ⚠️ **IMPORTANT:** Rules in this file **override** the Master file (`design-system/MASTER.md`).
-> Only deviations from the Master are documented here. For all other rules, refer to the Master.
+The eval console is an analysis workspace with three surfaces:
 
----
+- Run evaluation
+- Review runs
+- Compare two runs
 
-## Page-Specific Rules
+It should inherit the same enterprise shell as the rest of the product while allowing denser data presentation.
 
-### Layout Overrides
+## Layout
 
-- **Max Width:** 1200px (standard)
-- **Layout:** Full-width sections, centered content
-- **Sections:** 1. Hero (problem state), 2. Transformation slider/comparison, 3. How it works, 4. Results CTA
+- Shared page gutter only.
+- Title and description follow the standard header rhythm.
+- Tabs should feel neutral, with brand reserved for active and selected states.
 
-### Spacing Overrides
+## Brand Usage
 
-- No overrides — use Master spacing
+- `Run Evaluation` and `Compare` are primary brand actions.
+- Selected-run banners and compare counters may use `--primary-soft` and `--primary-border`.
+- Do not use literal teal fills or separate CTA colors.
 
-### Typography Overrides
+## Metrics And States
 
-- No overrides — use Master typography
-
-### Color Overrides
-
-- **Strategy:** Contrast: muted/grey (before) vs vibrant/colorful (after). Success green for results.
-
-### Component Overrides
-
-- No overrides — use Master component specs
-
----
-
-## Page-Specific Components
-
-- No unique components for this page
-
----
-
-## Recommendations
-
-- Effects: Comparison bar animations (grow to value), delta indicator animations (direction arrows), highlight on compare
-- CTA Placement: After transformation reveal + Bottom
+- Run status chips use the shared badge pattern.
+- Metric deltas use semantic text color only where meaning changes.
+- Comparison panels use shared surface tokens instead of raw white utility fills.
+- Highlighted differences may use warning-soft backgrounds, not saturated amber blocks.

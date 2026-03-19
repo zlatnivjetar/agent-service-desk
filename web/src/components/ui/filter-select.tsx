@@ -32,7 +32,7 @@ export function FilterSelect({
   const selectedLabel = options.find((opt) => opt.value === value)?.label
   return (
     <Select value={value ?? ""} onValueChange={(v) => onValueChange(v ?? "")}>
-      <SelectTrigger className={cn("w-40", className)}>
+      <SelectTrigger className={cn("w-40 bg-background", className)}>
         <SelectValue placeholder={placeholder}>
           {selectedLabel}
         </SelectValue>

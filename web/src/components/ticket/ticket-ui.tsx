@@ -81,8 +81,8 @@ export function getConfidenceMeta(confidence: number) {
   const style = getConfidenceStyle(confidence)
   return {
     barClassName: style.barClassName,
-    badgeClassName: style.className,
     label: style.label,
+    tone: style.tone,
   }
 }
 
@@ -96,20 +96,6 @@ export function isDraftPending(approvalOutcome: string | null | undefined) {
 
 export function getReviewOutcomeLabel(outcome: string | null | undefined) {
   return formatEnumLabel(outcome, "Pending")
-}
-
-export function getReviewOutcomeClass(outcome: string | null | undefined) {
-  switch (outcome) {
-    case "approved":
-    case "edited_and_approved":
-      return "bg-success/10 text-success border-success/20"
-    case "rejected":
-      return "bg-destructive/10 text-destructive border-destructive/20"
-    case "escalated":
-      return "bg-warning/10 text-warning border-warning/20"
-    default:
-      return "border-border text-foreground"
-  }
 }
 
 export function getErrorMessage(error: unknown, fallback = "Something went wrong") {

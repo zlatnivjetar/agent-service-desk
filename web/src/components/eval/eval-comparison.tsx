@@ -20,7 +20,7 @@ interface EvalComparisonProps {
 }
 
 function formatOutput(value: unknown): string {
-  if (value == null) return "—"
+  if (value == null) return "-"
   if (typeof value === "object" && value !== null) {
     const entries = Object.entries(value as Record<string, unknown>)
     return entries.map(([k, v]) => `${k}: ${String(v)}`).join(", ")
@@ -29,19 +29,19 @@ function formatOutput(value: unknown): string {
 }
 
 function pct(value: number | null | undefined): string {
-  if (value == null) return "—"
+  if (value == null) return "-"
   return `${(value * 100).toFixed(1)}%`
 }
 
 function Delta({ a, b }: { a: number | null | undefined; b: number | null | undefined }) {
-  if (a == null || b == null) return <span className="text-muted-foreground">—</span>
+  if (a == null || b == null) return <span className="text-muted-foreground">-</span>
   const delta = b - a
   if (Math.abs(delta) < 0.0001) {
-    return <span className="text-muted-foreground">±0%</span>
+    return <span className="text-muted-foreground">+/-0%</span>
   }
   const sign = delta > 0 ? "+" : ""
   return (
-    <span className={delta > 0 ? "text-emerald-600" : "text-red-500"}>
+    <span className={delta > 0 ? "text-success" : "text-destructive"}>
       {sign}
       {(delta * 100).toFixed(1)}%
     </span>
@@ -101,13 +101,13 @@ export function EvalComparisonView({ runAId, runBId }: EvalComparisonProps) {
   return (
     <div className="space-y-6">
       {/* Run labels */}
-      <div className="grid grid-cols-2 gap-4 rounded-lg border bg-white p-4 text-center shadow-sm">
+      <div className="grid grid-cols-2 gap-4 rounded-xl border bg-card p-4 text-center shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Run A
           </p>
           <p className="mt-1 text-sm font-medium text-foreground">
-            {run_a.eval_set_name} — {run_a.prompt_version_name}
+            {run_a.eval_set_name} - {run_a.prompt_version_name}
           </p>
         </div>
         <div>
@@ -115,14 +115,14 @@ export function EvalComparisonView({ runAId, runBId }: EvalComparisonProps) {
             Run B
           </p>
           <p className="mt-1 text-sm font-medium text-foreground">
-            {run_b.eval_set_name} — {run_b.prompt_version_name}
+            {run_b.eval_set_name} - {run_b.prompt_version_name}
           </p>
         </div>
       </div>
 
       {/* Metrics comparison panel */}
       {metricRows.length > 0 && (
-        <div className="overflow-x-auto rounded-lg border bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-xl border bg-card shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
           <Table>
             <TableHeader>
               <TableRow>
@@ -150,7 +150,7 @@ export function EvalComparisonView({ runAId, runBId }: EvalComparisonProps) {
 
       {/* Side-by-side example results */}
       {exampleIds.length > 0 && (
-        <div className="overflow-x-auto rounded-lg border bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-xl border bg-card shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
           <Table>
             <TableHeader>
               <TableRow>
@@ -168,7 +168,7 @@ export function EvalComparisonView({ runAId, runBId }: EvalComparisonProps) {
                 return (
                   <TableRow
                     key={exId}
-                    className={differs ? "bg-amber-50" : undefined}
+                    className={differs ? "bg-warning-soft" : undefined}
                   >
                     <TableCell className="max-w-[220px] truncate text-xs">
                       <span className="font-medium text-muted-foreground">
@@ -182,32 +182,32 @@ export function EvalComparisonView({ runAId, runBId }: EvalComparisonProps) {
                       {rA ? (
                         <div className="flex flex-col items-center gap-1">
                           {rA.passed ? (
-                            <CheckCircle2 className="size-4 text-emerald-600" />
+                            <CheckCircle2 className="size-4 text-success" />
                           ) : (
-                            <XCircle className="size-4 text-red-500" />
+                            <XCircle className="size-4 text-destructive" />
                           )}
                           <span className="max-w-[140px] truncate font-mono text-xs text-muted-foreground">
                             {formatOutput(rA.model_output)}
                           </span>
                         </div>
                       ) : (
-                        <span className="text-muted-foreground">—</span>
+                        <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
                     <TableCell className="text-center">
                       {rB ? (
                         <div className="flex flex-col items-center gap-1">
                           {rB.passed ? (
-                            <CheckCircle2 className="size-4 text-emerald-600" />
+                            <CheckCircle2 className="size-4 text-success" />
                           ) : (
-                            <XCircle className="size-4 text-red-500" />
+                            <XCircle className="size-4 text-destructive" />
                           )}
                           <span className="max-w-[140px] truncate font-mono text-xs text-muted-foreground">
                             {formatOutput(rB.model_output)}
                           </span>
                         </div>
                       ) : (
-                        <span className="text-muted-foreground">—</span>
+                        <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
                   </TableRow>

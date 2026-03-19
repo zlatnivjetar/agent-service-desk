@@ -1,9 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import {
-  AlertTriangle,
-  CheckCircle2,
   LoaderCircle,
   PencilLine,
   RefreshCcw,
@@ -16,6 +14,7 @@ import {
   useRedraft,
   useReviewDraft,
 } from "@/hooks/use-ticket-detail"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -28,18 +27,17 @@ import {
 } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
-import type { DraftGenerationResponse, TicketDraft, UserRole } from "@/types/api"
-
-function stripChunkMarkers(body: string): string {
-  return body.replace(/\[chunk:[0-9a-f-]+\]/gi, "").replace(/\n{3,}/g, "\n\n").trim()
-}
-
 import {
   ConfidenceBadge,
   ReviewOutcomeBadge,
   getErrorMessage,
   isDraftPending,
 } from "@/components/ticket/ticket-ui"
+import type { DraftGenerationResponse, TicketDraft, UserRole } from "@/types/api"
+
+function stripChunkMarkers(body: string): string {
+  return body.replace(/\[chunk:[0-9a-f-]+\]/gi, "").replace(/\n{3,}/g, "\n\n").trim()
+}
 
 export function DraftPanel({
   ticketId,
@@ -63,10 +61,6 @@ export function DraftPanel({
 
   const isGenerating = generateDraft.isPending || redraft.isPending
   const pendingReview = isDraftPending(draft?.approval_outcome)
-
-  useEffect(() => {
-    setEditedBody(draft?.body ?? "")
-  }, [draft?.body, draft?.id])
 
   function handleGenerate() {
     generateDraft.mutate(undefined, {
@@ -116,19 +110,13 @@ export function DraftPanel({
               <ConfidenceBadge confidence={draft.confidence} />
               <ReviewOutcomeBadge outcome={draft.approval_outcome} />
               {draft.send_ready ? (
-                <span className="inline-flex items-center gap-1 text-sm text-success">
-                  <CheckCircle2 className="size-4" />
-                  Send ready
-                </span>
+                <Badge dotClassName="bg-success">Send ready</Badge>
               ) : (
-                <span className="inline-flex items-center gap-1 text-sm text-warning">
-                  <AlertTriangle className="size-4" />
-                  Needs more evidence
-                </span>
+                <Badge dotClassName="bg-warning">Needs more evidence</Badge>
               )}
             </div>
 
-            <div className="rounded-xl border bg-background/70 p-4">
+            <div className="rounded-xl border bg-muted/30 p-4">
               <p className="whitespace-pre-wrap text-sm leading-6 text-foreground">{stripChunkMarkers(draft.body)}</p>
             </div>
 
@@ -149,7 +137,7 @@ export function DraftPanel({
                   <Button
                     onClick={handleApprove}
                     disabled={reviewDraft.isPending}
-                    className="cursor-pointer bg-[#F97316] text-white hover:bg-[#EA6A0A]"
+                    className="cursor-pointer"
                   >
                     {reviewDraft.isPending ? <LoaderCircle className="size-4 animate-spin" /> : null}
                     Approve
@@ -157,7 +145,10 @@ export function DraftPanel({
 
                   <Button
                     variant="secondary"
-                    onClick={() => setEditOpen(true)}
+                    onClick={() => {
+                      setEditedBody(draft.body)
+                      setEditOpen(true)
+                    }}
                     disabled={reviewDraft.isPending}
                     className="cursor-pointer"
                   >
@@ -244,7 +235,7 @@ export function DraftPanel({
               <Button
                 onClick={handleGenerate}
                 disabled={generateDraft.isPending}
-                className="cursor-pointer bg-[#F97316] text-white hover:bg-[#EA6A0A]"
+                className="cursor-pointer"
               >
                 {generateDraft.isPending ? <LoaderCircle className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
                 {generateDraft.isPending ? "Generating draft..." : "Generate Draft"}
@@ -330,7 +321,7 @@ function EditApproveDialog({
           <Button
             onClick={onSubmit}
             disabled={!value.trim() || pending}
-            className="cursor-pointer bg-[#F97316] text-white hover:bg-[#EA6A0A]"
+            className="cursor-pointer"
           >
             {pending ? "Saving..." : "Approve Edited Draft"}
           </Button>

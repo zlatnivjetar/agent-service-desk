@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { useAddMessage } from "@/hooks/use-ticket-detail"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
 import type { UserRole } from "@/types/api"
 
@@ -74,17 +75,16 @@ export function ReplyBox({
             value={body}
             onChange={(event) => setBody(event.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Write your reply…  (Ctrl+Enter to send)"
+            placeholder="Write your reply... (Ctrl+Enter to send)"
             className="min-h-32 bg-background/80"
           />
 
           {role !== "client_user" && (
             <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={isInternal}
-                onChange={(event) => setIsInternal(event.target.checked)}
-                className="size-4 rounded border-input accent-[#0D9488]"
+                onCheckedChange={(checked) => setIsInternal(Boolean(checked))}
+                className="cursor-pointer"
               />
               Internal note
             </label>
@@ -107,7 +107,7 @@ export function ReplyBox({
             <Button
               type="submit"
               disabled={!body.trim() || addMessage.isPending}
-              className="cursor-pointer bg-[#F97316] text-white hover:bg-[#EA6A0A]"
+              className="cursor-pointer"
             >
               <Send className="size-4" />
               {addMessage.isPending ? "Sending..." : "Send"}

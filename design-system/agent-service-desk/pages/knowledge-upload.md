@@ -1,46 +1,29 @@
-# Knowledge Upload Page Overrides
+# Knowledge Page Overrides
 
-> **PROJECT:** Agent Service Desk
-> **Generated:** 2026-03-17 12:20:26
-> **Page Type:** Dashboard / Data View
+## Purpose
 
-> ⚠️ **IMPORTANT:** Rules in this file **override** the Master file (`design-system/MASTER.md`).
-> Only deviations from the Master are documented here. For all other rules, refer to the Master.
+The knowledge page manages uploaded documents and chunk visibility.
+It should feel operational and document-focused.
 
----
+## Layout
 
-## Page-Specific Rules
+- Shared page gutter only.
+- Header aligns title, document count, and a single primary upload action.
+- Document cards stay neutral with compact metadata and restrained action controls.
 
-### Layout Overrides
+## Actions
 
-- **Max Width:** 1200px (standard)
-- **Layout:** Full-width sections, centered content
+- `Upload Document` uses the shared primary teal button.
+- `View chunks` stays outline.
+- Delete stays ghost destructive.
+- Upload dialog actions inherit the same hierarchy.
 
-### Spacing Overrides
+## Badge Usage
 
-- No overrides — use Master spacing
+- Document status and visibility use the shared neutral badge plus dot pattern.
+- `Client visible` can use the brand tone.
+- `Internal` and fallback states stay neutral.
 
-### Typography Overrides
+## Expansion
 
-- No overrides — use Master typography
-
-### Color Overrides
-
-- No overrides — use Master colors
-
-### Component Overrides
-
-- Avoid: Use arbitrary large z-index values
-
----
-
-## Page-Specific Components
-
-- No unique components for this page
-
----
-
-## Recommendations
-
-- Effects: Deal movement animations, metric updates, leaderboard ranking changes, gauge needle movements, status change highlights
-- Layout: Define z-index scale system (10 20 30 50)
+- Chunk rows should feel nested and subdued, not like a second page inside the card.

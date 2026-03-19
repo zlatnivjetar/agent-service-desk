@@ -1,195 +1,135 @@
-# Design System Master File
+# Agent Service Desk Design System
 
-> **LOGIC:** When building a specific page, first check `design-system/pages/[page-name].md`.
-> If that file exists, its rules **override** this Master file.
-> If not, strictly follow the rules below.
+> Read the page override in `design-system/agent-service-desk/pages/[page-name].md` first.
+> If a page file exists, it narrows or clarifies the rules below.
+> If no page file exists, this master file is the source of truth.
 
----
+## Product Direction
 
-**Project:** Agent Service Desk
-**Generated:** 2026-03-17 12:20:34
-**Category:** Creator Economy Platform
+Agent Service Desk is a dense enterprise workspace for agents and team leads.
+The interface should feel calm, reliable, and operational rather than loud or promotional.
 
----
+Core principles:
 
-## Global Rules
+- Teal is the only brand accent for primary actions, active states, and selected controls.
+- Surfaces stay neutral. Cards, tables, chips, and sidebars should not introduce extra accent fills.
+- Semantic colors are reserved for meaning: success, warning, danger, info, neutral.
+- Shared primitives decide the look. Pages should not hard-code button or badge colors.
 
-### Color Palette
+## Core Tokens
 
-| Role | Hex | CSS Variable |
-|------|-----|--------------|
-| Primary | `#0D9488` | `--color-primary` |
-| Secondary | `#5EEAD4` | `--color-secondary` |
-| CTA/Accent | `#F97316` | `--color-cta` |
-| Background | `#F8FAFC` | `--color-background` |
-| Text | `#0F172A` | `--color-text` |
+### Brand
 
-### Typography
+| Token | Role |
+| --- | --- |
+| `--primary` | Primary actions, active tabs, selected states |
+| `--primary-foreground` | Text on primary buttons |
+| `--primary-soft` | Brand-tinted banners and selected containers |
+| `--primary-border` | Borders for brand-tinted surfaces |
+| `--primary-hover` | Hover state for primary actions |
 
-- **Heading Font:** Inter
-- **Body Font:** Inter
-- **Mood:** Modern + Bold typography
+### Semantics
 
-### Spacing Variables
+| Token | Use |
+| --- | --- |
+| `--success` | Resolved, completed, approved, indexed, high confidence |
+| `--warning` | Pending, escalated, needs attention, high priority |
+| `--destructive` | Failed, rejected, critical |
+| `--info` | Open, processing, customer-facing informational states |
+| `--neutral` | Closed, internal, system, unknown, low-emphasis states |
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--space-xs` | `4px` / `0.25rem` | Tight gaps |
-| `--space-sm` | `8px` / `0.5rem` | Icon gaps, inline spacing |
-| `--space-md` | `16px` / `1rem` | Standard padding |
-| `--space-lg` | `24px` / `1.5rem` | Section padding |
-| `--space-xl` | `32px` / `2rem` | Large gaps |
-| `--space-2xl` | `48px` / `3rem` | Section margins |
-| `--space-3xl` | `64px` / `4rem` | Hero padding |
+Each semantic color can also have soft and border companions for low-contrast surfaces:
 
-### Shadow Depths
+- `--success-soft`, `--success-border`
+- `--warning-soft`, `--warning-border`
+- `--destructive-soft`, `--destructive-border`
+- `--info-soft`, `--info-border`
+- `--neutral-soft`, `--neutral-border`
 
-| Level | Value | Usage |
-|-------|-------|-------|
-| `--shadow-sm` | `0 1px 2px rgba(0,0,0,0.05)` | Subtle lift |
-| `--shadow-md` | `0 4px 6px rgba(0,0,0,0.1)` | Cards, buttons |
-| `--shadow-lg` | `0 10px 15px rgba(0,0,0,0.1)` | Modals, dropdowns |
-| `--shadow-xl` | `0 20px 25px rgba(0,0,0,0.15)` | Hero images, featured cards |
+### Surfaces
 
----
+| Token | Use |
+| --- | --- |
+| `--background` | App background |
+| `--card` | Cards, tables, dialogs |
+| `--muted` | Soft neutral fills and selected rows |
+| `--border` | Shared border token |
+| `--input` | Input and control borders |
 
-## Component Specs
+## Typography
 
-### Buttons
+- Font family: Inter
+- Headings: compact, high-contrast, no decorative color fills
+- Body text: neutral foreground with muted copy only where hierarchy requires it
 
-```css
-/* Primary Button */
-.btn-primary {
-  background: #F97316;
-  color: white;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 600;
-  transition: all 200ms ease;
-  cursor: pointer;
-}
+## Spacing And Rhythm
 
-.btn-primary:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
-}
+- Use a 4px / 8px spacing rhythm.
+- App shell padding should be consistent across Tickets, Reviews, Knowledge, Evals, and ticket detail.
+- Page headers should use one vertical pattern: title, then subdued metadata line.
+- Dense tables and card lists should align to the same content gutter instead of adding page-specific padding stacks.
 
-/* Secondary Button */
-.btn-secondary {
-  background: transparent;
-  color: #0D9488;
-  border: 2px solid #0D9488;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 600;
-  transition: all 200ms ease;
-  cursor: pointer;
-}
-```
+## Button Hierarchy
 
-### Cards
+There should be one dominant action per card, row, panel, or dialog.
 
-```css
-.card {
-  background: #F8FAFC;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: var(--shadow-md);
-  transition: all 200ms ease;
-  cursor: pointer;
-}
+- `default`: brand teal primary button
+- `secondary`: low-contrast filled neutral
+- `outline`: neutral outline
+- `ghost`: text-only or icon-only
+- `destructive`: subdued danger treatment, never louder than the primary action
 
-.card:hover {
-  box-shadow: var(--shadow-lg);
-  transform: translateY(-2px);
-}
-```
+Rules:
 
-### Inputs
+- Remove orange CTAs entirely.
+- Do not create page-level primary button colors.
+- If a row already has a primary action, every other action in that row must step down to secondary, outline, ghost, or destructive.
 
-```css
-.input {
-  padding: 12px 16px;
-  border: 1px solid #E2E8F0;
-  border-radius: 8px;
-  font-size: 16px;
-  transition: border-color 200ms ease;
-}
+## Badge Pattern
 
-.input:focus {
-  border-color: #0D9488;
-  outline: none;
-  box-shadow: 0 0 0 3px #0D948820;
-}
-```
+All read-only status chips use the same structure:
 
-### Modals
+- very light neutral background
+- subtle border
+- dark readable text
+- small colored dot on the left
+- rounded capsule shape with consistent height and padding
 
-```css
-.modal-overlay {
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
-}
+Tone mapping:
 
-.modal {
-  background: white;
-  border-radius: 16px;
-  padding: 32px;
-  box-shadow: var(--shadow-xl);
-  max-width: 500px;
-  width: 90%;
-}
-```
+- brand: new, client visible, agent-owned, selected count
+- info: open, customer, processing
+- warning: pending customer, pending internal, pending review, high priority, escalated
+- success: resolved, indexed, completed, approved, high confidence
+- danger: failed, rejected, critical
+- neutral: closed, internal, system, unknown, low priority
 
----
+Avoid:
 
-## Style Guidelines
+- full-fill pills for routine statuses
+- black fallback badges
+- one-off badge recipes in page code
 
-**Style:** Vibrant & Block-based
+## Page Behaviors
 
-**Keywords:** Bold, energetic, playful, block layout, geometric shapes, high color contrast, duotone, modern, energetic
+- Table subject text is normal foreground text. Brand color appears on hover or active interaction, not by default.
+- Selection banners and compare states may use `--primary-soft` plus `--primary-border`.
+- Message states and AI workflow panels should use soft semantic surfaces instead of saturated utility fills.
+- Sidebar branding, avatar fallbacks, and app-level brand marks must come from tokens, not literal hex values.
 
-**Best For:** Startups, creative agencies, gaming, social media, youth-focused, entertainment, consumer
+## Anti-Patterns
 
-**Key Effects:** Large sections (48px+ gaps), animated patterns, bold hover (color shift), scroll-snap, large type (32px+), 200-300ms
+- Orange primary actions
+- Black default badges
+- Hard-coded heading colors
+- Raw utility colors such as `bg-blue-100`, `bg-amber-50`, `bg-white`, or literal hex values in page code when shared tokens exist
+- Multiple competing CTAs in one action cluster
+- Status meaning communicated only by background fill without readable text
 
-### Page Pattern
+## Delivery Checklist
 
-**Pattern Name:** Before-After Transformation
-
-- **Conversion Strategy:** Visual proof of value. 45% higher conversion. Real results. Specific metrics. Guarantee offer.
-- **CTA Placement:** After transformation reveal + Bottom
-- **Section Order:** 1. Hero (problem state), 2. Transformation slider/comparison, 3. How it works, 4. Results CTA
-
----
-
-## Anti-Patterns (Do NOT Use)
-
-- ❌ Generic layout
-- ❌ Hidden earnings
-
-### Additional Forbidden Patterns
-
-- ❌ **Emojis as icons** — Use SVG icons (Heroicons, Lucide, Simple Icons)
-- ❌ **Missing cursor:pointer** — All clickable elements must have cursor:pointer
-- ❌ **Layout-shifting hovers** — Avoid scale transforms that shift layout
-- ❌ **Low contrast text** — Maintain 4.5:1 minimum contrast ratio
-- ❌ **Instant state changes** — Always use transitions (150-300ms)
-- ❌ **Invisible focus states** — Focus states must be visible for a11y
-
----
-
-## Pre-Delivery Checklist
-
-Before delivering any UI code, verify:
-
-- [ ] No emojis used as icons (use SVG instead)
-- [ ] All icons from consistent icon set (Heroicons/Lucide)
-- [ ] `cursor-pointer` on all clickable elements
-- [ ] Hover states with smooth transitions (150-300ms)
-- [ ] Light mode: text contrast 4.5:1 minimum
-- [ ] Focus states visible for keyboard navigation
-- [ ] `prefers-reduced-motion` respected
-- [ ] Responsive: 375px, 768px, 1024px, 1440px
-- [ ] No content hidden behind fixed navbars
-- [ ] No horizontal scroll on mobile
+- Shared primitives render the intended teal-led hierarchy without page overrides.
+- Buttons follow one action hierarchy across all main product surfaces.
+- Status, priority, visibility, confidence, and review outcome chips all use the neutral badge-with-dot pattern.
+- Tickets, Reviews, Knowledge, Evals, and ticket detail feel like one product family.
+- Design docs describe the actual enterprise service desk experience rather than unrelated marketing templates.

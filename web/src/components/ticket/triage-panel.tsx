@@ -39,11 +39,11 @@ export function TriagePanel({
         {prediction ? (
           <div className="grid gap-3">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline">{formatEnumLabel(prediction.predicted_category, "Uncategorized")}</Badge>
+              <Badge dotClassName="bg-neutral">{formatEnumLabel(prediction.predicted_category, "Uncategorized")}</Badge>
               {prediction.predicted_priority ? (
                 <PriorityBadge priority={prediction.predicted_priority} />
               ) : null}
-              <Badge variant="outline">{formatEnumLabel(prediction.predicted_team, "No team")}</Badge>
+              <Badge dotClassName="bg-neutral">{formatEnumLabel(prediction.predicted_team, "No team")}</Badge>
             </div>
 
             <ConfidenceMeter confidence={prediction.confidence} />
@@ -70,7 +70,7 @@ export function TriagePanel({
                   onError: (e) => toast.error(getErrorMessage(e, "Failed to run triage")),
                 })}
                 disabled={triageTicket.isPending}
-                className="cursor-pointer bg-[#0D9488] text-white hover:bg-[#0A7C72]"
+                className="cursor-pointer"
               >
                 {triageTicket.isPending && <LoaderCircle className="size-4 animate-spin" />}
                 {triageTicket.isPending ? "Running triage..." : "Run Triage"}

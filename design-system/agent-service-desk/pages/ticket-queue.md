@@ -1,47 +1,34 @@
-# Ticket Queue Page Overrides
+# Ticket Queue Overrides
 
-> **PROJECT:** Agent Service Desk
-> **Generated:** 2026-03-17 12:19:56
-> **Page Type:** Search Results
+## Purpose
 
-> ⚠️ **IMPORTANT:** Rules in this file **override** the Master file (`design-system/MASTER.md`).
-> Only deviations from the Master are documented here. For all other rules, refer to the Master.
+The ticket queue is a high-density operations table.
+It should optimize for scanning, filtering, and quick status recognition.
 
----
+## Layout
 
-## Page-Specific Rules
+- Full-width content inside the shared app gutter.
+- Header pattern: page title, muted total count, then filter row.
+- Keep the table dominant. Avoid decorative summary blocks above it.
 
-### Layout Overrides
+## Content Hierarchy
 
-- **Max Width:** 1400px or full-width
-- **Grid:** 12-column grid for data flexibility
-- **Sections:** 1. Hero (date/location/countdown), 2. Speakers grid, 3. Agenda/schedule, 4. Sponsors, 5. Register CTA
+- Subject is the primary text column and should render as normal foreground text.
+- Brand color appears only on hover, focus, or active navigation.
+- Category, assignee, org, confidence, and created columns stay neutral and low-noise.
 
-### Spacing Overrides
+## Controls
 
-- **Content Density:** High — optimize for information display
+- Filters use shared neutral controls.
+- Clear filters stays ghost.
+- Pagination stays outline.
 
-### Typography Overrides
+## Badge Usage
 
-- No overrides — use Master typography
+- Status and priority both use the shared neutral badge plus colored dot pattern.
+- Do not introduce per-column badge styling.
 
-### Color Overrides
+## Density Rules
 
-- **Strategy:** Urgency colors (countdown). Event branding. Speaker cards professional. Sponsor logos neutral.
-
-### Component Overrides
-
-- No overrides — use Master component specs
-
----
-
-## Page-Specific Components
-
-- No unique components for this page
-
----
-
-## Recommendations
-
-- Effects: Hover tooltips, chart zoom on click, row highlighting on hover, smooth filter animations, data loading spinners
-- CTA Placement: Register CTA sticky + After speakers + Bottom
+- Preserve readable column spacing, but prefer compact rows over decorative whitespace.
+- Truncation is acceptable for long subjects if the full value is available on hover.

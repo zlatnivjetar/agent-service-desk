@@ -52,12 +52,12 @@ export function RunEvalForm({ onRunStarted }: RunEvalFormProps) {
 
   return (
     <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg font-semibold text-[#0F172A]">
+      <CardHeader className="px-6 pt-6 pb-4">
+        <CardTitle className="text-lg font-semibold">
           New Evaluation Run
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4 pt-2">
+      <CardContent className="space-y-4 px-6 pb-6">
         {/* Eval Set */}
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-foreground">Eval Set</label>
@@ -67,7 +67,7 @@ export function RunEvalForm({ onRunStarted }: RunEvalFormProps) {
             onValueChange={(v) => setEvalSetId(v ?? "")}
           >
             <SelectTrigger className="w-full cursor-pointer">
-              <SelectValue placeholder={setsLoading ? "Loading…" : "Select an eval set"}>
+              <SelectValue placeholder={setsLoading ? "Loading..." : "Select an eval set"}>
                 {selectedSet
                   ? `${selectedSet.name} (${selectedSet.example_count} examples)`
                   : null}
@@ -98,7 +98,7 @@ export function RunEvalForm({ onRunStarted }: RunEvalFormProps) {
           >
             <SelectTrigger className="w-full cursor-pointer">
               <SelectValue
-                placeholder={versionsLoading ? "Loading…" : "Select a prompt version"}
+                placeholder={versionsLoading ? "Loading..." : "Select a prompt version"}
               >
                 {selectedVersion ? (
                   <span className="flex items-center gap-2">
@@ -109,9 +109,10 @@ export function RunEvalForm({ onRunStarted }: RunEvalFormProps) {
                     {selectedVersion.is_active && (
                       <Badge
                         variant="secondary"
-                        className="h-4 px-1 py-0 text-[10px]"
+                        className="px-2 text-[10px]"
+                        dotClassName="bg-primary"
                       >
-                        active
+                        Active
                       </Badge>
                     )}
                   </span>
@@ -126,9 +127,10 @@ export function RunEvalForm({ onRunStarted }: RunEvalFormProps) {
                   {v.is_active && (
                     <Badge
                       variant="secondary"
-                      className="h-4 px-1 py-0 text-[10px]"
+                      className="px-2 text-[10px]"
+                      dotClassName="bg-primary"
                     >
-                      active
+                      Active
                     </Badge>
                   )}
                 </SelectItem>
@@ -146,12 +148,12 @@ export function RunEvalForm({ onRunStarted }: RunEvalFormProps) {
         <Button
           onClick={handleSubmit}
           disabled={!canSubmit}
-          className="cursor-pointer bg-[#F97316] text-white hover:bg-[#EA6A0A]"
+          className="cursor-pointer"
         >
           {createRun.isPending ? (
             <>
               <LoaderCircle className="mr-2 size-4 animate-spin" />
-              Starting…
+              Starting...
             </>
           ) : (
             "Run Evaluation"

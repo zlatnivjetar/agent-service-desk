@@ -1,52 +1,30 @@
-# Review Queue Page Overrides
+# Review Queue Overrides
 
-> **PROJECT:** Agent Service Desk
-> **Generated:** 2026-03-17 12:20:18
-> **Page Type:** General
+## Purpose
 
-> ⚠️ **IMPORTANT:** Rules in this file **override** the Master file (`design-system/MASTER.md`).
-> Only deviations from the Master are documented here. For all other rules, refer to the Master.
+The review queue is a stack of draft approval cards.
+Each card should make the draft content readable while keeping the action cluster calm.
 
----
+## Layout
 
-## Page-Specific Rules
+- Shared page gutter only. Do not add an extra full-page padding wrapper.
+- Card list spacing should be regular and compact.
+- The right-hand column should align confidence and actions without looking like a rainbow toolbar.
 
-### Layout Overrides
+## Action Hierarchy
 
-- **Max Width:** 1200px (standard)
-- **Layout:** Full-width sections, centered content
-- **Sections:** 1. Hero (product + aggregate rating), 2. Rating breakdown, 3. Individual reviews, 4. Buy/CTA
+- `Approve` is the single primary action.
+- `Edit` is secondary or outline.
+- `Reject` is subdued destructive.
+- `Escalate` is outline or ghost.
 
-### Spacing Overrides
+## Badge Usage
 
-- No overrides — use Master spacing
+- Confidence chips use the shared neutral capsule with semantic dot.
+- Confidence copy can stay explicit, but keep it short enough to sit comfortably in the action column.
 
-### Typography Overrides
+## Content Hierarchy
 
-- No overrides — use Master typography
-
-### Color Overrides
-
-- **Strategy:** Trust colors. Star ratings gold. Verified badge green. Review sentiment colors.
-
-### Component Overrides
-
-- Avoid: Silent success
-- Avoid: No confirmation of completed action
-- Avoid: Delete without confirmation
-
----
-
-## Page-Specific Components
-
-- No unique components for this page
-
----
-
-## Recommendations
-
-- Effects: Testimonial carousel animations, logo grid fade-in, stat counter animations (number count-up), review star ratings
-- Feedback: Brief success message
-- Interaction: Show success message or visual change
-- Interaction: Confirm before delete/irreversible actions
-- CTA Placement: After reviews summary + Buy button alongside reviews
+- Ticket subject is interactive but understated.
+- Draft body remains muted body copy.
+- Generated time stays low emphasis.

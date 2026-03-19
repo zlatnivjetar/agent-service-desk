@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useParams } from "next/navigation"
 
 import { DraftPanel } from "@/components/ticket/draft-panel"
@@ -32,27 +32,22 @@ export default function TicketDetailPage() {
     isPending: ticketPending,
   } = useTicketDetail(ticketId ?? "")
 
-  const [evidenceChunks, setEvidenceChunks] = useState<EvidenceChunk[] | null>(null)
-  const [evidenceDraftId, setEvidenceDraftId] = useState<string | null>(null)
+  const [loadedEvidence, setLoadedEvidence] = useState<{
+    draftId: string
+    chunks: EvidenceChunk[]
+  } | null>(null)
 
-  useEffect(() => {
-    if (!ticket?.latest_draft?.id) {
-      setEvidenceChunks(null)
-      setEvidenceDraftId(null)
-      return
-    }
-
-    if (evidenceDraftId && evidenceDraftId === ticket.latest_draft.id) {
-      return
-    }
-
-    setEvidenceChunks(null)
-    setEvidenceDraftId(null)
-  }, [evidenceDraftId, ticket?.latest_draft?.id])
+  const currentDraftId = ticket?.latest_draft?.id ?? null
+  const evidenceChunks =
+    currentDraftId && loadedEvidence?.draftId === currentDraftId
+      ? loadedEvidence.chunks
+      : null
 
   function handleEvidenceLoaded(result: DraftGenerationResponse) {
-    setEvidenceDraftId(result.id)
-    setEvidenceChunks(result.evidence_chunks)
+    setLoadedEvidence({
+      draftId: result.id,
+      chunks: result.evidence_chunks,
+    })
   }
 
   function scrollToActions() {
@@ -195,9 +190,9 @@ function StateCard({
   destructive?: boolean
 }) {
   return (
-    <Card className="mx-auto w-full max-w-[720px] ">
+    <Card className="mx-auto w-full max-w-[720px]">
       <CardContent className="space-y-2 py-8">
-        <h1 className={`text-xl font-semibold ${destructive ? "text-destructive" : "text-[#0F172A]"}`}>
+        <h1 className={`text-xl font-semibold ${destructive ? "text-destructive" : "text-foreground"}`}>
           {title}
         </h1>
         <p className="text-sm text-muted-foreground">{description}</p>

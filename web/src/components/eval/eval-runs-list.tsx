@@ -30,7 +30,7 @@ interface EvalRunsListProps {
 }
 
 function formatOutput(value: unknown): string {
-  if (value == null) return "—"
+  if (value == null) return "-"
   if (typeof value === "object" && value !== null) {
     const entries = Object.entries(value as Record<string, unknown>)
     return entries.map(([k, v]) => `${k}: ${String(v)}`).join(", ")
@@ -39,7 +39,7 @@ function formatOutput(value: unknown): string {
 }
 
 function pct(value: number | null | undefined): string {
-  if (value == null) return "—"
+  if (value == null) return "-"
   return `${(value * 100).toFixed(1)}%`
 }
 
@@ -72,7 +72,7 @@ function RunDetailRow({ runId }: { runId: string }) {
           {hasAccuracy && (
             <div className="text-sm">
               <span className="font-medium text-foreground">Accuracy:</span>{" "}
-              <span className="text-[#0D9488]">
+              <span className="text-primary">
                 {pct(metrics.accuracy)}
               </span>
             </div>
@@ -80,7 +80,7 @@ function RunDetailRow({ runId }: { runId: string }) {
           {hasRouting && (
             <div className="text-sm">
               <span className="font-medium text-foreground">Routing Accuracy:</span>{" "}
-              <span className="text-[#0D9488]">
+              <span className="text-primary">
                 {pct(metrics.routing_accuracy)}
               </span>
             </div>
@@ -88,7 +88,7 @@ function RunDetailRow({ runId }: { runId: string }) {
           {hasCitation && (
             <div className="text-sm">
               <span className="font-medium text-foreground">Citation Hit Rate:</span>{" "}
-              <span className="text-[#0D9488]">
+              <span className="text-primary">
                 {pct(metrics.citation_hit_rate)}
               </span>
             </div>
@@ -140,7 +140,7 @@ function RunDetailRow({ runId }: { runId: string }) {
                           </span>
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
-                          —
+                          -
                         </TableCell>
                         <TableCell className="max-w-[160px] truncate font-mono text-xs">
                           {formatOutput(result.expected_output)}
@@ -219,14 +219,14 @@ export function EvalRunsList({
   return (
     <div className="space-y-3">
       {selectedRunIds.length === 2 && (
-        <div className="flex items-center justify-between rounded-lg border border-[#0D9488]/30 bg-teal-50 px-4 py-2">
-          <p className="text-sm font-medium text-[#0D9488]">
+        <div className="flex flex-col gap-3 rounded-lg border border-primary-border bg-primary-soft px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-medium text-foreground">
             2 runs selected for comparison
           </p>
           <Button
             size="sm"
             onClick={onCompare}
-            className="cursor-pointer bg-[#0D9488] text-white hover:bg-[#0C837A]"
+            className="cursor-pointer"
           >
             Compare
           </Button>

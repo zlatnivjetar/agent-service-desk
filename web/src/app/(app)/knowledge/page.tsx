@@ -88,7 +88,7 @@ function ChunkList({ docId }: { docId: string }) {
           </div>
           <p className="leading-relaxed text-muted-foreground">
             {chunk.content.slice(0, 200)}
-            {chunk.content.length > 200 ? "…" : ""}
+            {chunk.content.length > 200 ? "..." : ""}
           </p>
         </div>
       ))}
@@ -116,7 +116,7 @@ function DocCard({ doc }: { doc: KnowledgeDocListItem }) {
   return (
     <>
       <Card variant="interactive">
-        <CardContent className="p-5">
+        <CardContent className="p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             {/* Left */}
             <div className="min-w-0 flex-1 space-y-1.5">
@@ -179,11 +179,12 @@ function DocCard({ doc }: { doc: KnowledgeDocListItem }) {
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
+              variant="destructive"
               onClick={handleDelete}
               disabled={deleteMutation.isPending}
-              className="cursor-pointer bg-destructive text-white hover:bg-destructive/90"
+              className="cursor-pointer"
             >
-              {deleteMutation.isPending ? "Deleting…" : "Delete"}
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -199,7 +200,7 @@ function DocCardSkeletons() {
     <>
       {[1, 2, 3].map((i) => (
         <Card key={i}>
-          <CardContent className="p-5">
+          <CardContent className="p-6">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 space-y-2">
                 <Skeleton className="h-4 w-48" />

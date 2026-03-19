@@ -1,52 +1,29 @@
-# Ticket Workspace Page Overrides
+# Ticket Workspace Overrides
 
-> **PROJECT:** Agent Service Desk
-> **Generated:** 2026-03-17 12:20:06
-> **Page Type:** Product Detail
+## Purpose
 
-> ⚠️ **IMPORTANT:** Rules in this file **override** the Master file (`design-system/MASTER.md`).
-> Only deviations from the Master are documented here. For all other rules, refer to the Master.
+The ticket workspace is the detail view where agents read context, draft responses, run triage, and update ownership.
+It should feel like a focused continuation of the queue, not a different product.
 
----
+## Layout
 
-## Page-Specific Rules
+- Shared page gutter and consistent card rhythm.
+- Main message column remains dominant.
+- The right rail groups AI and workflow controls into clearly separated neutral cards.
 
-### Layout Overrides
+## Action Hierarchy
 
-- **Max Width:** 1200px (standard)
-- **Layout:** Full-width sections, centered content
-- **Sections:** 1. Hero (date/location/countdown), 2. Speakers grid, 3. Agenda/schedule, 4. Sponsors, 5. Register CTA
+- `Generate Draft`, `Approve`, `Approve Edited Draft`, `Send`, `Run Triage`, and `Resolve` use the shared primary button only when they are the dominant action in their section.
+- Edit, escalate, re-draft, reopen, and field updates step down to secondary or outline.
+- Destructive review actions stay semantic but quieter than the primary CTA.
 
-### Spacing Overrides
+## Surfaces
 
-- No overrides — use Master spacing
+- Message states use soft semantic surfaces, not raw teal or amber utility fills.
+- Headings use shared foreground tokens.
+- Metadata chips and workflow states use the shared badge family.
 
-### Typography Overrides
+## Interaction Notes
 
-- No overrides — use Master typography
-
-### Color Overrides
-
-- **Strategy:** Urgency colors (countdown). Event branding. Speaker cards professional. Sponsor logos neutral.
-
-### Component Overrides
-
-- Avoid: Visual-only error indication
-- Avoid: Silent success
-- Avoid: Toasts that never disappear
-
----
-
-## Page-Specific Components
-
-- No unique components for this page
-
----
-
-## Recommendations
-
-- Effects: WebGL/Three.js 3D, realistic shadows (layers), physics lighting, parallax (3-5 layers), smooth 3D (300-400ms)
-- Accessibility: Use aria-live or role=alert for errors
-- Feedback: Brief success message
-- Feedback: Auto-dismiss after 3-5 seconds
-- CTA Placement: Register CTA sticky + After speakers + Bottom
+- Internal notes must remain obvious through semantic treatment, not through harsh full fills.
+- AI workflow panels should read as part of the same product family as the rest of the workspace.
