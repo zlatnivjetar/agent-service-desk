@@ -387,3 +387,24 @@ The ticket workspace had a hardcoded list of two demo users in its assignee pick
 **How these pieces connect**
 
 The `/users` endpoint is RLS-scoped the same way as every other data endpoint — it reads `current_setting('app.workspace_id')` to filter users to the current workspace, which is set by `get_rls_db` before the query runs. If that session variable weren't set correctly (e.g., if a route accidentally used bare `get_db()` instead of `get_rls_db`), the query would throw a Postgres error or return users from the wrong workspace. The frontend `useWorkspaceUsers()` hook feeds directly into the assignee picker in `ticket-actions.tsx`, replacing the hardcoded demo UUIDs — any deployment where the users table is empty (e.g., a fresh environment without seed data) will show an empty dropdown. The partial index in `schema.sql` only takes effect on new database deployments or full resets; an existing live Neon instance needs a manual `CREATE INDEX` migration to gain the benefit.
+
+
+---
+
+## Milestone 6C: Deployment Configuration
+
+## What we built and why
+
+This milestone wires the application to two cloud platforms — Vercel for the Next.js frontend and Railway for the FastAPI backend — so the system can run outside a developer's laptop. The challenge isn't writing code: it's configuring each platform to find, build, and run the right service from a monorepo, and making sure the two services can talk to each other securely across the internet.
+
+## Key concepts under the hood
+
+*Monorepo deployment with per-service root directories.* A monorepo keeps multiple services in one repository, but deployment platforms expect a single project at the repo root. The solution is to tell each platform where its service lives — Vercel's "Root Directory" set to `web/`, Railway's set to `api/`. This means each platform only sees its own slice of the repo: it won't try to build the Python code on Vercel or the Next.js code on Railway. Getting this wrong causes the platform to look for the wrong build artifacts (e.g., Vercel looking for `package.json` at the repo root and failing because it only exists in `web/`).
+
+*The `__Secure-` cookie prefix as a browser security mechanism.* Browsers enforce a rule: any cookie whose name starts with `__Secure-` may only be set over HTTPS and must carry the `Secure` flag. BetterAuth automatically applies this prefix to session cookies when it detects the app is running on HTTPS — so the cookie that's named `better-auth.session_token` in local development becomes `__Secure-better-auth.session_token` in production. Any code that checks for the session cookie by exact name (like a middleware auth guard) will silently fail to find it unless it accounts for both names. The fix is straightforward once you know it exists, but the failure mode — successful login that immediately bounces back to the login page — is hard to diagnose from the outside because the sign-in API call returns 200.
+
+*Environment-aware configuration via a JSON string validator.* On Railway, every environment variable is a plain string — there's no native concept of a list. pydantic-settings can parse a Python list written in `.env.local` format (`["http://localhost:3000"]`), but when Railway sends the same value as a raw string, the field validator needs to explicitly call `json.loads()` on it before pydantic sees it. Without this, the CORS origins list would either fail to parse entirely or be treated as a single string (the literal characters `[`, `"`, `h`, ...) instead of a list of origins, causing all cross-origin API requests from the frontend to be blocked.
+
+## How these pieces connect
+
+Every other milestone assumes a working deployment target — this one creates it. The frontend's `NEXT_PUBLIC_API_URL` points at Railway, so if Railway isn't reachable or CORS isn't configured correctly, every API call from the browser fails silently. The auth cookie fix is load-bearing for all authenticated surfaces: if the middleware doesn't recognise the `__Secure-`-prefixed cookie, no user can reach any page behind the auth guard regardless of whether their credentials are correct. Milestone 6D (demo walkthrough) depends entirely on 6C being stable — a broken deploy makes it impossible to verify the end-to-end demo flows.

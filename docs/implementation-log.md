@@ -805,3 +805,30 @@ Appended automatically when COMPLETED is triggered in Claude Code.
 ### Gotchas
 - Vector HNSW index on `knowledge_chunks.embedding` was already present in schema.sql — no action needed
 - The partial index in schema.sql only applies to fresh DB resets; existing Neon instances need a manual `CREATE INDEX` migration to pick it up
+
+---
+
+## Milestone 6C — Deployment Configuration
+**Date:** 2026-03-19
+
+### What changed
+- `web/vercel.json` — framework, build command, output directory
+- `web/next.config.ts` — added `output: "standalone"`
+- `api/railway.json` — Railpack builder, `python -m uvicorn` start command, restart policy
+- `api/Procfile` — Railway fallback start command
+- `api/requirements.txt` — added so Railpack detects Python and installs dependencies
+- `api/app/config.py` — added `environment` setting; `field_validator` to parse `CORS_ORIGINS` from JSON string (Railway sends env vars as plain strings)
+- `api/app/routers/health.py` — added `version` and `environment` fields to response
+- `web/src/proxy.ts` — middleware now checks both `better-auth.session_token` and `__Secure-better-auth.session_token`
+- `web/src/lib/auth.ts` — added `trustedOrigins` for production domain
+- `docs/deployment.md` — full step-by-step deploy guide with env var reference and troubleshooting
+
+### Key decisions
+- Switched Railway builder from Nixpacks (deprecated) to Railpack; added `requirements.txt` since Railpack didn't auto-detect `pyproject.toml`
+- Used `python -m uvicorn` instead of `uvicorn` directly — Railpack doesn't put the venv bin on PATH
+- CORS validator handles both list (`.env.local`) and JSON string (Railway) formats
+
+### Gotchas
+- BetterAuth prefixes session cookies with `__Secure-` on HTTPS — middleware must check both names or login silently fails in production
+- Railway env vars are plain strings; pydantic-settings needs a `field_validator` to parse JSON arrays like `CORS_ORIGINS`
+- Railpack requires `requirements.txt` to detect Python; `pyproject.toml` alone was not enough

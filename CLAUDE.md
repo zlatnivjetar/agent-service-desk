@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 6C: Deployment Configuration**
+**→ Milestone 6D: Demo Walkthrough & README**
 
 Implementation plans:
 - Part 1 (Milestones 1–3): `docs/implementation-plan.md`
