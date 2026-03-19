@@ -138,7 +138,7 @@ function TicketWorkspaceSkeleton() {
   return (
     <div className="mx-auto grid w-full max-w-[1200px] gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
       <div className="space-y-6">
-        <Card className="border-0 bg-white/90 shadow-sm ring-1 ring-foreground/8">
+        <Card className="">
           <CardContent className="space-y-4 py-6">
             <Skeleton className="h-8 w-2/3" />
             <Skeleton className="h-4 w-1/3" />
@@ -150,7 +150,7 @@ function TicketWorkspaceSkeleton() {
           </CardContent>
         </Card>
 
-        <Card className="border-0 bg-white/90 shadow-sm ring-1 ring-foreground/8">
+        <Card className="">
           <CardContent className="space-y-4 py-6">
             {Array.from({ length: 4 }).map((_, index) => (
               <div key={index} className="space-y-2">
@@ -162,7 +162,7 @@ function TicketWorkspaceSkeleton() {
           </CardContent>
         </Card>
 
-        <Card className="border-0 bg-white/90 shadow-sm ring-1 ring-foreground/8">
+        <Card className="">
           <CardContent className="space-y-3 py-6">
             <Skeleton className="h-28 w-full" />
             <Skeleton className="h-8 w-24" />
@@ -172,7 +172,7 @@ function TicketWorkspaceSkeleton() {
 
       <div className="space-y-6">
         {Array.from({ length: 4 }).map((_, index) => (
-          <Card key={index} className="border-0 bg-white/90 shadow-sm ring-1 ring-foreground/8">
+          <Card key={index} className="">
             <CardContent className="space-y-3 py-6">
               <Skeleton className="h-5 w-28" />
               <Skeleton className="h-4 w-full" />
@@ -195,7 +195,7 @@ function StateCard({
   destructive?: boolean
 }) {
   return (
-    <Card className="mx-auto w-full max-w-[720px] border-0 bg-white/90 shadow-sm ring-1 ring-foreground/8">
+    <Card className="mx-auto w-full max-w-[720px] ">
       <CardContent className="space-y-2 py-8">
         <h1 className={`text-xl font-semibold ${destructive ? "text-destructive" : "text-[#0F172A]"}`}>
           {title}

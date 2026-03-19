@@ -373,6 +373,21 @@ CREATE INDEX idx_draft_pending ON draft_generations(created_at)
 CREATE INDEX idx_ticket_messages_ticket_created
     ON ticket_messages(ticket_id, created_at);
 
+-- Ticket list sort patterns (workspace + date columns)
+CREATE INDEX idx_tickets_workspace_created
+    ON tickets(workspace_id, created_at DESC);
+
+CREATE INDEX idx_tickets_workspace_updated
+    ON tickets(workspace_id, updated_at DESC);
+
+-- Prediction confidence lookup (supports lateral join in ticket list)
+CREATE INDEX idx_ticket_predictions_ticket_created
+    ON ticket_predictions(ticket_id, created_at DESC);
+
+-- Draft lookup by ticket (supports latest-draft query in ticket detail)
+CREATE INDEX idx_draft_generations_ticket_created
+    ON draft_generations(ticket_id, created_at DESC);
+
 
 -- ============================================================================
 -- Row-Level Security

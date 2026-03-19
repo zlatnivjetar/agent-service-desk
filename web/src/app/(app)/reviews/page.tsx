@@ -21,7 +21,8 @@ import {
 } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
-import { ConfidenceBadge, getErrorMessage } from "@/components/ticket/ticket-ui"
+import { ConfidenceBadge } from "@/components/ui/status-badges"
+import { getErrorMessage } from "@/components/ticket/ticket-ui"
 import type { DraftQueueItem } from "@/types/api"
 
 function formatSecondsAgo(seconds: number): string {
@@ -71,7 +72,7 @@ function ReviewQueueContent() {
     <div className="space-y-6 p-6">
       {/* Page header */}
       <div>
-        <h1 className="text-2xl font-semibold text-[#0F172A]">Review Queue</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Review Queue</h1>
         {!isLoading && data && (
           <p className="mt-1 text-sm text-muted-foreground">
             {data.total} {data.total === 1 ? "draft" : "drafts"} pending review
@@ -83,7 +84,7 @@ function ReviewQueueContent() {
       {isLoading && (
         <div className="space-y-4">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Card key={i} className="border-0 bg-white/90 shadow-sm ring-1 ring-foreground/8">
+            <Card key={i}>
               <CardContent className="p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1 space-y-2">
@@ -195,7 +196,7 @@ function ReviewCard({ item }: { item: DraftQueueItem }) {
   }
 
   return (
-    <Card className="border-0 bg-white/90 shadow-sm ring-1 ring-foreground/8 transition-shadow duration-200 hover:shadow-md">
+    <Card variant="interactive">
       <CardContent className="p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           {/* Left section */}

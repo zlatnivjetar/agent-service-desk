@@ -30,7 +30,7 @@ export function TicketHeader({
   const showAssignButton = isPrivilegedRole(role) && !ticket.assignee_id
 
   return (
-    <Card className="border-0 bg-white/90 shadow-sm ring-1 ring-foreground/8">
+    <Card>
       <CardHeader className="gap-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-2">

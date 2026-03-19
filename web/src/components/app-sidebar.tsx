@@ -16,7 +16,6 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   DropdownMenu,
@@ -24,6 +23,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { RoleBadge } from "@/components/ui/status-badges"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { authClient } from "@/lib/auth-client"
 import { clearTokenCache } from "@/lib/api-client"
@@ -37,15 +37,6 @@ const workspaceNav = [
 const adminNav = [
   { label: "Eval Console", href: "/evals", icon: FlaskConical, roles: ["team_lead"] },
 ]
-
-function roleLabel(role: string): string {
-  switch (role) {
-    case "team_lead": return "Team Lead"
-    case "support_agent": return "Agent"
-    case "client_user": return "Client"
-    default: return role
-  }
-}
 
 export function AppSidebar() {
   const pathname = usePathname()
@@ -69,7 +60,7 @@ export function AppSidebar() {
           <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#0D9488] text-white text-xs font-semibold flex-shrink-0">
             SD
           </div>
-          <span className="font-semibold text-sm text-[#0F172A] truncate">Agent Service Desk</span>
+          <span className="font-semibold text-sm truncate">Agent Service Desk</span>
         </div>
       </SidebarHeader>
 
@@ -160,11 +151,7 @@ export function AppSidebar() {
                   ) : (
                     <>
                       <span className="truncate font-semibold text-xs">{user?.name || user?.user_id}</span>
-                      {role && (
-                        <Badge variant="secondary" className="text-xs px-1 py-0 w-fit">
-                          {roleLabel(role)}
-                        </Badge>
-                      )}
+                      {role && <RoleBadge role={role} />}
                     </>
                   )}
                 </div>

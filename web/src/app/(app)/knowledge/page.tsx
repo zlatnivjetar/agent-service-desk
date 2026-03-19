@@ -23,50 +23,28 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
+import { KnowledgeStatusBadge, VisibilityBadge } from "@/components/ui/status-badges"
+import { FilterBar } from "@/components/ui/filter-bar"
+import { FilterSelect, type FilterOption } from "@/components/ui/filter-select"
 import { formatRelativeTime } from "@/lib/format"
-import { cn } from "@/lib/utils"
 import type { KnowledgeDocListItem } from "@/types/api"
 
-// --- Badge helpers ---
+// --- Filter options ---
 
-const STATUS_CLASSES: Record<string, string> = {
-  pending: "border-border text-muted-foreground",
-  processing: "bg-blue-100 text-blue-800 border-blue-200",
-  indexed: "bg-success/10 text-success border-success/20",
-  failed: "bg-destructive/10 text-destructive border-destructive/20",
-}
+const STATUS_OPTIONS: FilterOption[] = [
+  { value: "pending", label: "Pending" },
+  { value: "processing", label: "Processing" },
+  { value: "indexed", label: "Indexed" },
+  { value: "failed", label: "Failed" },
+]
 
-function DocStatusBadge({ status }: { status: string }) {
-  return (
-    <Badge
-      className={cn(
-        "capitalize",
-        STATUS_CLASSES[status] ?? "border-border text-foreground"
-      )}
-    >
-      {status}
-    </Badge>
-  )
-}
-
-function VisibilityBadge({ visibility }: { visibility: string }) {
-  return (
-    <Badge variant={visibility === "client_visible" ? "default" : "secondary"}>
-      {visibility === "client_visible" ? "Client visible" : "Internal"}
-    </Badge>
-  )
-}
+const VISIBILITY_OPTIONS: FilterOption[] = [
+  { value: "internal", label: "Internal" },
+  { value: "client_visible", label: "Client visible" },
+]
 
 // --- Chunk list (only mounted when expanded) ---
 
@@ -137,19 +115,19 @@ function DocCard({ doc }: { doc: KnowledgeDocListItem }) {
 
   return (
     <>
-      <Card className="border-0 bg-white/90 shadow-sm ring-1 ring-foreground/8 transition-shadow duration-200 hover:shadow-md">
+      <Card variant="interactive">
         <CardContent className="p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             {/* Left */}
             <div className="min-w-0 flex-1 space-y-1.5">
-              <p className="truncate font-semibold text-[#0F172A]">{doc.title}</p>
+              <p className="truncate font-semibold">{doc.title}</p>
               {doc.source_filename && (
                 <p className="truncate text-xs text-muted-foreground">
                   {doc.source_filename}
                 </p>
               )}
               <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                <DocStatusBadge status={doc.status} />
+                <KnowledgeStatusBadge status={doc.status} />
                 <VisibilityBadge visibility={doc.visibility} />
                 <span className="text-xs text-muted-foreground">
                   {formatRelativeTime(doc.created_at)}
@@ -220,10 +198,7 @@ function DocCardSkeletons() {
   return (
     <>
       {[1, 2, 3].map((i) => (
-        <Card
-          key={i}
-          className="border-0 bg-white/90 shadow-sm ring-1 ring-foreground/8"
-        >
+        <Card key={i}>
           <CardContent className="p-5">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 space-y-2">
@@ -279,6 +254,10 @@ function KnowledgePageContent() {
     router.push(`?${next.toString()}`)
   }
 
+  function clearFilters() {
+    router.push("?")
+  }
+
   const { data, isLoading, isError, refetch } = useKnowledgeDocs(
     { page, per_page: 20, status: status || null, visibility: visibility || null },
     { enabled: !userPending && !isClientUser }
@@ -315,7 +294,7 @@ function KnowledgePageContent() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-[#0F172A]">
+          <h1 className="text-2xl font-semibold tracking-tight">
             Knowledge Base
           </h1>
           {data && (
@@ -335,56 +314,22 @@ function KnowledgePageContent() {
       </div>
 
       {/* Filter bar */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Select
-          value={status ?? ""}
+      <FilterBar onClear={clearFilters} hasActiveFilters={hasActiveFilters}>
+        <FilterSelect
+          value={status}
           onValueChange={(v) => setParam("status", v || null)}
-        >
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="All statuses">
-              {status
-                ? status.charAt(0).toUpperCase() + status.slice(1)
-                : undefined}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="processing">Processing</SelectItem>
-            <SelectItem value="indexed">Indexed</SelectItem>
-            <SelectItem value="failed">Failed</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={visibility ?? ""}
+          placeholder="All statuses"
+          options={STATUS_OPTIONS}
+          className="w-40"
+        />
+        <FilterSelect
+          value={visibility}
           onValueChange={(v) => setParam("visibility", v || null)}
-        >
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="All visibility">
-              {visibility === "internal"
-                ? "Internal"
-                : visibility === "client_visible"
-                  ? "Client visible"
-                  : undefined}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="internal">Internal</SelectItem>
-            <SelectItem value="client_visible">Client visible</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {hasActiveFilters && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => router.push("?")}
-            className="cursor-pointer"
-          >
-            Clear filters
-          </Button>
-        )}
-      </div>
+          placeholder="All visibility"
+          options={VISIBILITY_OPTIONS}
+          className="w-44"
+        />
+      </FilterBar>
 
       {/* Document list */}
       {isLoading ? (

@@ -8,15 +8,7 @@ def list_pending_drafts(
     page: int,
     per_page: int,
 ) -> tuple[int, list[dict]]:
-    total_row = conn.execute(
-        """
-        SELECT count(*) AS total
-        FROM draft_generations dg
-        WHERE dg.approval_outcome = 'pending' OR dg.approval_outcome IS NULL
-        """
-    ).fetchone()
-    total = total_row["total"]
-
+    # Single query: window function replaces separate COUNT(*) query
     rows = conn.execute(
         """
         SELECT
@@ -27,7 +19,8 @@ def list_pending_drafts(
             dg.confidence,
             dg.approval_outcome,
             EXTRACT(EPOCH FROM (now() - dg.created_at)) AS time_since_generation,
-            dg.created_at
+            dg.created_at,
+            COUNT(*) OVER() AS total_count
         FROM draft_generations dg
         JOIN tickets t ON t.id = dg.ticket_id
         WHERE dg.approval_outcome = 'pending' OR dg.approval_outcome IS NULL
@@ -36,6 +29,7 @@ def list_pending_drafts(
         """,
         [per_page, (page - 1) * per_page],
     ).fetchall()
+    total = rows[0]["total_count"] if rows else 0
 
     return total, rows
 

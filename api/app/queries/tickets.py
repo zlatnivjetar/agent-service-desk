@@ -6,7 +6,7 @@ from psycopg.types.json import Jsonb
 _ALLOWED_SORT_COLUMNS = {"created_at", "updated_at", "priority", "status", "subject"}
 _ALLOWED_SORT_ORDERS = {"asc", "desc"}
 
-# Base SELECT used for both list and detail endpoints
+# Base SELECT for single-ticket lookups (get, update, assign)
 _TICKET_SELECT = """
     SELECT
         t.id, t.subject, t.status, t.priority, t.category, t.team,
@@ -14,17 +14,15 @@ _TICKET_SELECT = """
         u.full_name   AS assignee_name,
         o.name        AS org_name,
         sp.name       AS sla_policy_name,
-        (
-            SELECT tp.confidence
-            FROM ticket_predictions tp
-            WHERE tp.ticket_id = t.id
-            ORDER BY tp.created_at DESC
-            LIMIT 1
-        ) AS confidence
+        tp.confidence
     FROM tickets t
     LEFT JOIN users u  ON u.id  = t.assignee_id
     LEFT JOIN organizations o   ON o.id  = t.org_id
     LEFT JOIN sla_policies sp   ON sp.id = t.sla_policy_id
+    LEFT JOIN LATERAL (
+        SELECT confidence FROM ticket_predictions
+        WHERE ticket_id = t.id ORDER BY created_at DESC LIMIT 1
+    ) tp ON true
 """
 
 _ALLOWED_UPDATE_FIELDS = {"status", "priority", "assignee_id", "category", "team"}
@@ -69,19 +67,18 @@ def list_tickets(
 
     where_sql = " AND ".join(where_clauses) if where_clauses else "TRUE"
 
-    total_row = conn.execute(
-        f"SELECT count(*) AS total FROM tickets t WHERE {where_sql}", params
-    ).fetchone()
-    total = total_row["total"]
-
+    # Single query: window function replaces separate COUNT(*) query
     query_sql = (
-        _TICKET_SELECT
-        + f"WHERE {where_sql}\n"
-        + f"ORDER BY t.{sort_by} {sort_order}\n"
+        "SELECT *, COUNT(*) OVER() AS total_count FROM (\n"
+        + _TICKET_SELECT
+        + f"    WHERE {where_sql}\n"
+        + ") sub\n"
+        + f"ORDER BY {sort_by} {sort_order}\n"
         + "LIMIT %s OFFSET %s"
     )
     page_params = params + [per_page, (page - 1) * per_page]
     rows = conn.execute(query_sql, page_params).fetchall()
+    total = rows[0]["total_count"] if rows else 0
     return total, rows
 
 
@@ -192,6 +189,84 @@ def get_ticket_assignments(conn: Connection, ticket_id: str) -> list[dict]:
     ).fetchall()
 
 
+_TICKET_DETAIL_SQL = """
+    WITH msgs AS (
+        SELECT COALESCE(json_agg(
+            json_build_object(
+                'id', m.id,
+                'sender_id', m.sender_id,
+                'sender_type', m.sender_type,
+                'body', m.body,
+                'is_internal', m.is_internal,
+                'created_at', m.created_at,
+                'sender_name', u.full_name
+            ) ORDER BY m.created_at ASC
+        ), '[]'::json) AS data
+        FROM ticket_messages m
+        LEFT JOIN users u ON u.id = m.sender_id
+        WHERE m.ticket_id = %s
+    ),
+    pred AS (
+        SELECT
+            id, predicted_category, predicted_priority,
+            predicted_team, escalation_suggested, escalation_reason, confidence,
+            created_at
+        FROM ticket_predictions
+        WHERE ticket_id = %s
+        ORDER BY created_at DESC
+        LIMIT 1
+    ),
+    drft AS (
+        SELECT
+            id, body, evidence_chunk_ids, confidence, unresolved_questions,
+            send_ready, approval_outcome, created_at
+        FROM draft_generations
+        WHERE ticket_id = %s
+        ORDER BY created_at DESC
+        LIMIT 1
+    ),
+    assigns AS (
+        SELECT COALESCE(json_agg(
+            json_build_object(
+                'id', a.id,
+                'assigned_to', a.assigned_to,
+                'assigned_by', a.assigned_by,
+                'team', a.team,
+                'created_at', a.created_at
+            ) ORDER BY a.created_at ASC
+        ), '[]'::json) AS data
+        FROM ticket_assignments a
+        WHERE a.ticket_id = %s
+    )
+    SELECT
+        t.id, t.subject, t.status, t.priority, t.category, t.team,
+        t.assignee_id, t.created_at, t.updated_at,
+        u.full_name   AS assignee_name,
+        o.name        AS org_name,
+        sp.name       AS sla_policy_name,
+        (SELECT pred.confidence FROM pred) AS confidence,
+        msgs.data     AS messages,
+        (SELECT row_to_json(pred.*) FROM pred) AS latest_prediction,
+        (SELECT row_to_json(drft.*) FROM drft) AS latest_draft,
+        assigns.data  AS assignments
+    FROM tickets t
+    LEFT JOIN users u  ON u.id  = t.assignee_id
+    LEFT JOIN organizations o   ON o.id  = t.org_id
+    LEFT JOIN sla_policies sp   ON sp.id = t.sla_policy_id
+    CROSS JOIN msgs
+    CROSS JOIN assigns
+    WHERE t.id = %s
+"""
+
+
+def get_ticket_detail(conn: Connection, ticket_id: str) -> Optional[dict]:
+    """Fetch ticket + messages + prediction + draft + assignments in one query."""
+    return conn.execute(
+        _TICKET_DETAIL_SQL,
+        [ticket_id] * 5,
+    ).fetchone()
+
+
 def insert_ticket_prediction(
     conn: Connection,
     ticket_id: str,
@@ -264,10 +339,7 @@ def update_ticket(conn: Connection, ticket_id: str, updates: dict) -> Optional[d
         f"UPDATE tickets SET {', '.join(set_clauses)} WHERE id = %s RETURNING id",
         params,
     ).fetchone()
-
-    if result is None:
-        return None
-    return get_ticket(conn, ticket_id)
+    return result  # {id: UUID} or None; caller uses get_ticket_detail for full data
 
 
 def insert_message(
@@ -385,16 +457,19 @@ def assign_ticket(
     assigned_by: str,
     team: Optional[str],
 ) -> Optional[dict]:
-    conn.execute(
+    result = conn.execute(
         """
         UPDATE tickets
         SET assignee_id = %s,
             team = COALESCE(%s::team_name, team),
             updated_at = now()
         WHERE id = %s
+        RETURNING id
         """,
         [assignee_id, team, ticket_id],
-    )
+    ).fetchone()
+    if result is None:
+        return None
     conn.execute(
         """
         INSERT INTO ticket_assignments (ticket_id, assigned_to, assigned_by, team)
@@ -402,4 +477,4 @@ def assign_ticket(
         """,
         [ticket_id, assignee_id, assigned_by, team],
     )
-    return get_ticket(conn, ticket_id)
+    return result  # {id: UUID}; caller uses get_ticket_detail for full data

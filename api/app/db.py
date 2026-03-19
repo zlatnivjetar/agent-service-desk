@@ -14,6 +14,7 @@ pool = ConnectionPool(
     min_size=1,
     max_size=10,
     open=False,
+    timeout=10,  # seconds to wait for a connection from the pool
     check=_check_connection,
     kwargs={"row_factory": dict_row},
 )

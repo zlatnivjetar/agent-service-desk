@@ -44,20 +44,12 @@ def require_role(user: CurrentUser, allowed: list[str]) -> None:
         )
 
 
-def _build_detail(ticket: dict, conn: Connection) -> TicketDetail:
-    ticket_id = str(ticket["id"])
-    messages = q.get_ticket_messages(conn, ticket_id)
-    prediction = q.get_latest_prediction(conn, ticket_id)
-    draft = q.get_latest_draft(conn, ticket_id)
-    assignments = q.get_ticket_assignments(conn, ticket_id)
-
-    return TicketDetail(
-        **ticket,
-        messages=[TicketMessage.model_validate(m) for m in messages],
-        latest_prediction=TicketPrediction.model_validate(prediction) if prediction else None,
-        latest_draft=TicketDraft.model_validate(draft) if draft else None,
-        assignments=[TicketAssignment.model_validate(a) for a in assignments],
-    )
+def _build_detail(conn: Connection, ticket_id: str) -> Optional[TicketDetail]:
+    """Fetch full ticket detail in a single consolidated query."""
+    row = q.get_ticket_detail(conn, ticket_id)
+    if row is None:
+        return None
+    return TicketDetail.model_validate(dict(row))
 
 
 @router.get("/stats", response_model=TicketStats)
@@ -105,10 +97,10 @@ def get_ticket(
     ticket_id: UUID,
     db: Annotated[Connection, Depends(get_rls_db)],
 ):
-    ticket = q.get_ticket(db, str(ticket_id))
-    if ticket is None:
+    detail = _build_detail(db, str(ticket_id))
+    if detail is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket not found")
-    return _build_detail(dict(ticket), db)
+    return detail
 
 
 @router.patch("/{ticket_id}", response_model=TicketDetail)
@@ -118,10 +110,10 @@ def update_ticket(
     db: Annotated[Connection, Depends(get_rls_db)],
 ):
     updates = body.model_dump(exclude_none=True)
-    ticket = q.update_ticket(db, str(ticket_id), updates)
-    if ticket is None:
+    result = q.update_ticket(db, str(ticket_id), updates)
+    if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket not found")
-    return _build_detail(dict(ticket), db)
+    return _build_detail(db, str(ticket_id))
 
 
 @router.post(
@@ -154,16 +146,16 @@ def assign_ticket(
     user: Annotated[CurrentUser, Depends(get_current_user)],
     db: Annotated[Connection, Depends(get_rls_db)],
 ):
-    ticket = q.assign_ticket(
+    result = q.assign_ticket(
         conn=db,
         ticket_id=str(ticket_id),
         assignee_id=str(body.assignee_id),
         assigned_by=user.user_id,
         team=body.team,
     )
-    if ticket is None:
+    if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket not found")
-    return _build_detail(dict(ticket), db)
+    return _build_detail(db, str(ticket_id))
 
 
 @router.post(

@@ -51,7 +51,7 @@ export function RunEvalForm({ onRunStarted }: RunEvalFormProps) {
   }
 
   return (
-    <Card className="border-0 bg-white/90 shadow-sm ring-1 ring-foreground/8">
+    <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-lg font-semibold text-[#0F172A]">
           New Evaluation Run

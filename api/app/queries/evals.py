@@ -42,15 +42,11 @@ def get_eval_set(conn: Connection, set_id: str) -> Optional[dict]:
 def list_eval_examples(
     conn: Connection, set_id: str, page: int, per_page: int
 ) -> tuple[int, list[dict]]:
-    total_row = conn.execute(
-        "SELECT COUNT(*)::int AS total FROM eval_examples WHERE eval_set_id = %s",
-        [set_id],
-    ).fetchone()
-    total = total_row["total"]
-
+    # Single query: window function replaces separate COUNT(*) query
     rows = conn.execute(
         """
-        SELECT id, type, input_text, expected_category, expected_team, expected_chunk_ids
+        SELECT id, type, input_text, expected_category, expected_team, expected_chunk_ids,
+            COUNT(*) OVER() AS total_count
         FROM eval_examples
         WHERE eval_set_id = %s
         ORDER BY created_at ASC
@@ -58,6 +54,7 @@ def list_eval_examples(
         """,
         [set_id, per_page, (page - 1) * per_page],
     ).fetchall()
+    total = rows[0]["total_count"] if rows else 0
 
     return total, rows
 

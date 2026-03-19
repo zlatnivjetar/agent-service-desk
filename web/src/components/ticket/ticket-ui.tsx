@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge"
-import { cn } from "@/lib/utils"
+import { getConfidenceStyle } from "@/lib/badge-styles"
 import type {
   DraftReviewAction,
   EvidenceChunk,
@@ -7,6 +7,15 @@ import type {
   TicketStatus,
   UserRole,
 } from "@/types/api"
+
+// Re-export shared badge components for backward compatibility
+export {
+  TicketStatusBadge as StatusBadge,
+  TicketPriorityBadge as PriorityBadge,
+  SenderBadge,
+  ConfidenceBadge,
+  ApprovalOutcomeBadge as ReviewOutcomeBadge,
+} from "@/components/ui/status-badges"
 
 export const TICKET_STATUS_OPTIONS: Array<{ value: TicketStatus; label: string }> = [
   { value: "new", label: "New" },
@@ -36,28 +45,6 @@ export const DEMO_ASSIGNEES = [
     role: "team_lead" as const,
   },
 ]
-
-const STATUS_CLASSES: Record<string, string> = {
-  new: "bg-primary text-primary-foreground",
-  open: "bg-blue-100 text-blue-800 border-blue-200",
-  pending_customer: "border-border text-foreground",
-  pending_internal: "border-border text-foreground",
-  resolved: "bg-success/10 text-success border-success/20",
-  closed: "bg-muted text-muted-foreground border-transparent",
-}
-
-const PRIORITY_CLASSES: Record<string, string> = {
-  low: "bg-muted text-muted-foreground border-transparent",
-  medium: "bg-secondary text-secondary-foreground border-transparent",
-  high: "bg-warning/10 text-warning border-warning/20",
-  critical: "bg-destructive/10 text-destructive border-destructive/20",
-}
-
-const SENDER_CLASSES: Record<string, string> = {
-  customer: "bg-blue-100 text-blue-800 border-blue-200",
-  agent: "bg-primary/10 text-primary border-primary/20",
-  system: "bg-muted text-muted-foreground border-transparent",
-}
 
 export function formatEnumLabel(value: string | null | undefined, fallback = "-") {
   if (!value) return fallback
@@ -91,26 +78,11 @@ export function getSlaLabel(priority: string | null | undefined) {
 }
 
 export function getConfidenceMeta(confidence: number) {
-  if (confidence >= 0.8) {
-    return {
-      barClassName: "bg-success",
-      badgeClassName: "bg-success/10 text-success border-success/20",
-      label: "High confidence",
-    }
-  }
-
-  if (confidence >= 0.5) {
-    return {
-      barClassName: "bg-warning",
-      badgeClassName: "bg-warning/10 text-warning border-warning/20",
-      label: "Medium confidence",
-    }
-  }
-
+  const style = getConfidenceStyle(confidence)
   return {
-    barClassName: "bg-destructive",
-    badgeClassName: "bg-destructive/10 text-destructive border-destructive/20",
-    label: "Low confidence",
+    barClassName: style.barClassName,
+    badgeClassName: style.className,
+    label: style.label,
   }
 }
 
@@ -155,48 +127,6 @@ export function getErrorStatus(error: unknown) {
   }
 
   return undefined
-}
-
-export function StatusBadge({ status }: { status: string }) {
-  return (
-    <Badge className={cn("capitalize", STATUS_CLASSES[status] ?? "border-border text-foreground")}>
-      {formatEnumLabel(status)}
-    </Badge>
-  )
-}
-
-export function PriorityBadge({ priority }: { priority: string }) {
-  return (
-    <Badge className={cn("capitalize", PRIORITY_CLASSES[priority] ?? "border-border text-foreground")}>
-      {formatEnumLabel(priority)}
-    </Badge>
-  )
-}
-
-export function SenderBadge({ senderType }: { senderType: string }) {
-  return (
-    <Badge className={cn("capitalize", SENDER_CLASSES[senderType] ?? "border-border text-foreground")}>
-      {formatEnumLabel(senderType)}
-    </Badge>
-  )
-}
-
-export function ConfidenceBadge({ confidence }: { confidence: number }) {
-  const meta = getConfidenceMeta(confidence)
-
-  return (
-    <Badge className={meta.badgeClassName}>
-      {Math.round(confidence * 100)}% {meta.label.toLowerCase()}
-    </Badge>
-  )
-}
-
-export function ReviewOutcomeBadge({ outcome }: { outcome: string | null | undefined }) {
-  return (
-    <Badge className={cn(getReviewOutcomeClass(outcome))}>
-      {getReviewOutcomeLabel(outcome)}
-    </Badge>
-  )
 }
 
 export function EvidenceList({

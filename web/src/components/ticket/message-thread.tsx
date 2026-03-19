@@ -27,7 +27,7 @@ export function MessageThread({ messages }: { messages: TicketMessage[] }) {
   }, [messages.length])
 
   return (
-    <Card className="border-0 bg-white/90 shadow-sm ring-1 ring-foreground/8">
+    <Card>
       <CardHeader>
         <CardTitle>Message Thread</CardTitle>
       </CardHeader>

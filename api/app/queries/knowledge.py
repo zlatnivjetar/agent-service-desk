@@ -27,14 +27,11 @@ def list_documents(
 
     where_sql = " AND ".join(where_clauses) if where_clauses else "TRUE"
 
-    total_row = conn.execute(
-        f"SELECT count(*) AS total FROM knowledge_documents WHERE {where_sql}", params
-    ).fetchone()
-    total = total_row["total"]
-
+    # Single query: window function replaces separate COUNT(*) query
     rows = conn.execute(
         f"""
-        SELECT id, title, source_filename, content_type, visibility, status, created_at
+        SELECT id, title, source_filename, content_type, visibility, status, created_at,
+            COUNT(*) OVER() AS total_count
         FROM knowledge_documents
         WHERE {where_sql}
         ORDER BY created_at DESC
@@ -42,6 +39,7 @@ def list_documents(
         """,
         params + [per_page, (page - 1) * per_page],
     ).fetchall()
+    total = rows[0]["total_count"] if rows else 0
 
     return total, rows
 

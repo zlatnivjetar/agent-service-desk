@@ -47,7 +47,7 @@ export function TicketActions({ ticket }: { ticket: TicketDetail }) {
   })) ?? []
 
   return (
-    <Card id="ticket-actions" className="border-0 bg-white/90 shadow-sm ring-1 ring-foreground/8">
+    <Card id="ticket-actions">
       <CardHeader>
         <CardTitle>Actions</CardTitle>
       </CardHeader>

@@ -64,7 +64,7 @@ export function ReplyBox({
   }
 
   return (
-    <Card className="border-0 bg-white/90 shadow-sm ring-1 ring-foreground/8">
+    <Card>
       <CardHeader>
         <CardTitle>Reply</CardTitle>
       </CardHeader>

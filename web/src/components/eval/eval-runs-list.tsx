@@ -4,7 +4,6 @@ import { useState } from "react"
 import { CheckCircle2, ChevronDown, ChevronUp, XCircle } from "lucide-react"
 
 import { useEvalRuns, useEvalRunDetail } from "@/hooks/use-evals"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -21,36 +20,13 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
-import type { EvalRunListItem } from "@/types/api"
+import { DataTable } from "@/components/ui/data-table"
+import { EvalRunStatusBadge } from "@/components/ui/status-badges"
 
 interface EvalRunsListProps {
   selectedRunIds: string[]
   onSelectionChange: (ids: string[]) => void
   onCompare: () => void
-}
-
-function statusBadge(status: string) {
-  switch (status) {
-    case "completed":
-      return (
-        <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-          completed
-        </Badge>
-      )
-    case "running":
-      return (
-        <Badge
-          variant="secondary"
-          className="animate-pulse bg-blue-100 text-blue-700 hover:bg-blue-100"
-        >
-          running
-        </Badge>
-      )
-    case "failed":
-      return <Badge variant="destructive">failed</Badge>
-    default:
-      return <Badge variant="outline">{status}</Badge>
-  }
 }
 
 function formatOutput(value: unknown): string {
@@ -74,7 +50,7 @@ function RunDetailRow({ runId }: { runId: string }) {
   if (isLoading) {
     return (
       <TableRow>
-        <TableCell colSpan={8} className="bg-slate-50 px-6 py-4">
+        <TableCell colSpan={8} className="bg-muted/30 px-6 py-4">
           <Skeleton className="h-4 w-48" />
         </TableCell>
       </TableRow>
@@ -89,7 +65,7 @@ function RunDetailRow({ runId }: { runId: string }) {
   const hasCitation = metrics.citation_hit_rate != null
 
   return (
-    <TableRow className="bg-slate-50 hover:bg-slate-50">
+    <TableRow className="bg-muted/30 hover:bg-muted/30">
       <TableCell colSpan={8} className="px-6 py-4">
         {/* Metrics summary */}
         <div className="mb-3 flex flex-wrap gap-4">
@@ -134,7 +110,7 @@ function RunDetailRow({ runId }: { runId: string }) {
               {examplesOpen ? "Hide" : "Show"} {detail.results.length} examples
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="overflow-x-auto rounded border bg-white">
+              <div className="overflow-x-auto rounded border bg-card">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -151,8 +127,8 @@ function RunDetailRow({ runId }: { runId: string }) {
                         key={result.id}
                         className={
                           result.passed
-                            ? "bg-emerald-50/40"
-                            : "bg-red-50/40"
+                            ? "bg-success/5"
+                            : "bg-destructive/5"
                         }
                       >
                         <TableCell className="max-w-[280px] truncate text-xs">
@@ -174,9 +150,9 @@ function RunDetailRow({ runId }: { runId: string }) {
                         </TableCell>
                         <TableCell className="text-center">
                           {result.passed ? (
-                            <CheckCircle2 className="mx-auto size-4 text-emerald-600" />
+                            <CheckCircle2 className="mx-auto size-4 text-success" />
                           ) : (
-                            <XCircle className="mx-auto size-4 text-red-500" />
+                            <XCircle className="mx-auto size-4 text-destructive" />
                           )}
                           {result.notes && (
                             <p className="mt-0.5 text-[10px] text-muted-foreground">
@@ -257,75 +233,75 @@ export function EvalRunsList({
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-lg border bg-white shadow-sm">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-10" />
-              <TableHead>Eval Set</TableHead>
-              <TableHead>Prompt Version</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Passed</TableHead>
-              <TableHead className="text-right">Failed</TableHead>
-              <TableHead className="text-right">Accuracy</TableHead>
-              <TableHead>Created</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {runs.map((run) => {
-              const isExpanded = expandedRunId === run.id
-              const isChecked = selectedRunIds.includes(run.id)
-              const checkDisabled =
-                !isChecked &&
-                selectedRunIds.length >= 2
+      <DataTable>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-10" />
+            <TableHead>Eval Set</TableHead>
+            <TableHead>Prompt Version</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="text-right">Passed</TableHead>
+            <TableHead className="text-right">Failed</TableHead>
+            <TableHead className="text-right">Accuracy</TableHead>
+            <TableHead>Created</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {runs.map((run) => {
+            const isExpanded = expandedRunId === run.id
+            const isChecked = selectedRunIds.includes(run.id)
+            const checkDisabled =
+              !isChecked &&
+              selectedRunIds.length >= 2
 
-              return [
-                <TableRow
-                  key={run.id}
-                  className="cursor-pointer transition-colors duration-150 hover:bg-slate-50"
-                  onClick={() => toggleExpand(run.id)}
+            return [
+              <TableRow
+                key={run.id}
+                className="cursor-pointer"
+                onClick={() => toggleExpand(run.id)}
+              >
+                <TableCell
+                  onClick={(e) => e.stopPropagation()}
+                  className="px-3"
                 >
-                  <TableCell
-                    onClick={(e) => e.stopPropagation()}
-                    className="px-3"
-                  >
-                    <Checkbox
-                      checked={isChecked}
-                      disabled={checkDisabled}
-                      onCheckedChange={(checked) =>
-                        toggleSelection(run.id, !!checked)
-                      }
-                      className="cursor-pointer"
-                    />
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    {run.eval_set_name}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {run.prompt_version_name}
-                  </TableCell>
-                  <TableCell>{statusBadge(run.status)}</TableCell>
-                  <TableCell className="text-right text-sm font-medium text-emerald-600">
-                    {run.passed}
-                  </TableCell>
-                  <TableCell className="text-right text-sm font-medium text-red-500">
-                    {run.failed}
-                  </TableCell>
-                  <TableCell className="text-right text-sm font-medium">
-                    {pct(run.metrics?.accuracy)}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {new Date(run.created_at).toLocaleDateString()}
-                  </TableCell>
-                </TableRow>,
-                isExpanded && run.status === "completed" ? (
-                  <RunDetailRow key={`${run.id}-detail`} runId={run.id} />
-                ) : null,
-              ]
-            })}
-          </TableBody>
-        </Table>
-      </div>
+                  <Checkbox
+                    checked={isChecked}
+                    disabled={checkDisabled}
+                    onCheckedChange={(checked) =>
+                      toggleSelection(run.id, !!checked)
+                    }
+                    className="cursor-pointer"
+                  />
+                </TableCell>
+                <TableCell className="font-medium">
+                  {run.eval_set_name}
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {run.prompt_version_name}
+                </TableCell>
+                <TableCell>
+                  <EvalRunStatusBadge status={run.status} />
+                </TableCell>
+                <TableCell className="text-right text-sm font-medium text-success">
+                  {run.passed}
+                </TableCell>
+                <TableCell className="text-right text-sm font-medium text-destructive">
+                  {run.failed}
+                </TableCell>
+                <TableCell className="text-right text-sm font-medium">
+                  {pct(run.metrics?.accuracy)}
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {new Date(run.created_at).toLocaleDateString()}
+                </TableCell>
+              </TableRow>,
+              isExpanded && run.status === "completed" ? (
+                <RunDetailRow key={`${run.id}-detail`} runId={run.id} />
+              ) : null,
+            ]
+          })}
+        </TableBody>
+      </DataTable>
     </div>
   )
 }
