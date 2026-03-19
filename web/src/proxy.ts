@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// BetterAuth stores the session as a signed cookie with this name.
-// We check for its presence here; actual validation happens in server routes.
+// BetterAuth uses __Secure- prefix on HTTPS (production), plain name on HTTP (local).
 const SESSION_COOKIE = "better-auth.session_token";
+const SESSION_COOKIE_SECURE = "__Secure-better-auth.session_token";
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const hasSession = request.cookies.has(SESSION_COOKIE);
+  const hasSession =
+    request.cookies.has(SESSION_COOKIE) ||
+    request.cookies.has(SESSION_COOKIE_SECURE);
 
   // Already on login — redirect authenticated users away
   if (pathname === "/login") {
