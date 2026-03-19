@@ -1,6 +1,12 @@
 # Agent Service Desk
 
-## Current Milestone
+## Current Focus
+
+**UI polish and performance optimization**
+
+No pre-defined plan, we will apply fixes as we go.
+
+## Remaining Milestone
 
 **→ Milestone 6D: Demo Walkthrough & README**
 
