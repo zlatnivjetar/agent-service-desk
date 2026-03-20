@@ -34,6 +34,8 @@ MAX_RETRIES = 3
 MAX_EMBED_BATCH_SIZE = 100
 MAX_TOOL_ROUNDS = 3
 REQUEST_TIMEOUT_SECONDS = 10.0
+GENERATION_MAX_OUTPUT_TOKENS = 500
+GENERATION_REASONING_EFFORT = "minimal"
 
 # Verified against OpenAI official pricing on 2026-03-14.
 _USD_PER_MILLION_TOKENS: dict[str, dict[str, float]] = {
@@ -149,11 +151,8 @@ def generate_with_tools(
         model=GENERATION_MODEL,
         prompt_length=len(system_prompt) + len(user_input),
         fn=lambda: client.responses.create(
-            model=GENERATION_MODEL,
-            instructions=system_prompt,
             input=user_input,
-            tools=tools,
-            timeout=REQUEST_TIMEOUT_SECONDS,
+            **_generation_request_kwargs(system_prompt, tools),
         ),
     )
 
@@ -207,12 +206,9 @@ def generate_with_tools(
             model=GENERATION_MODEL,
             prompt_length=sum(len(json.dumps(item, default=str)) for item in tool_outputs),
             fn=lambda tool_outputs=tool_outputs, previous_response_id=previous_response_id: client.responses.create(
-                model=GENERATION_MODEL,
-                instructions=system_prompt,
                 previous_response_id=previous_response_id,
                 input=tool_outputs,
-                tools=tools,
-                timeout=REQUEST_TIMEOUT_SECONDS,
+                **_generation_request_kwargs(system_prompt, tools),
             ),
         )
 
@@ -287,6 +283,23 @@ def _mock_generate_with_tools(tool_executor: Callable[..., Any]) -> dict[str, An
         "latency_ms": 210,
         "token_usage": {"prompt_tokens": 600, "completion_tokens": 180, "total_tokens": 780},
         "estimated_cost_cents": 0.031,
+    }
+
+
+def _generation_request_kwargs(
+    system_prompt: str,
+    tools: list[dict[str, Any]],
+) -> dict[str, Any]:
+    return {
+        "model": GENERATION_MODEL,
+        "instructions": system_prompt,
+        "tools": tools,
+        # Tool-using GPT-5 requests default to medium reasoning, which is slow
+        # enough to trip the 10s timeout in local draft generation.
+        "reasoning": {"effort": GENERATION_REASONING_EFFORT},
+        "parallel_tool_calls": False,
+        "max_output_tokens": GENERATION_MAX_OUTPUT_TOKENS,
+        "timeout": REQUEST_TIMEOUT_SECONDS,
     }
 
 

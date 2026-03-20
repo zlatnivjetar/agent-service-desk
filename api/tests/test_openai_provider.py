@@ -506,9 +506,16 @@ def test_generate_with_tools_threads_previous_response_id(monkeypatch: pytest.Mo
     )
 
     assert len(transport.requests) == 2
+    round1_body = json.loads(transport.requests[0].content)
     round2_body = json.loads(transport.requests[1].content)
+    assert round1_body["reasoning"] == {"effort": "minimal"}
+    assert round1_body["parallel_tool_calls"] is False
+    assert round1_body["max_output_tokens"] == 500
     # SDK must thread the previous response ID for multi-turn context
     assert round2_body["previous_response_id"] == "resp_round1"
+    assert round2_body["reasoning"] == {"effort": "minimal"}
+    assert round2_body["parallel_tool_calls"] is False
+    assert round2_body["max_output_tokens"] == 500
     tool_out = round2_body["input"][0]
     assert tool_out["type"] == "function_call_output"
     assert tool_out["call_id"] == "call_001"

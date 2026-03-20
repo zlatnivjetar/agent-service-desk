@@ -26,6 +26,7 @@ _CHUNK_UUID_RE = re.compile(
     r"\[chunk:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\]",
     re.IGNORECASE,
 )
+_DRAFT_LABEL_RE = re.compile(r"^(short\s+answer|answer|response)\s*:\s*", re.IGNORECASE)
 
 _SEARCH_KNOWLEDGE_TOOL: list[dict[str, Any]] = [
     {
@@ -35,8 +36,10 @@ _SEARCH_KNOWLEDGE_TOOL: list[dict[str, Any]] = [
             "Search the knowledge base for relevant documentation to help answer "
             "the customer's question. Use specific, targeted queries."
         ),
+        "strict": True,
         "parameters": {
             "type": "object",
+            "additionalProperties": False,
             "properties": {
                 "query": {
                     "type": "string",
@@ -58,6 +61,134 @@ class DraftTicketNotFoundError(LookupError):
 
 class DraftPromptNotConfiguredError(RuntimeError):
     """Raised when no active draft prompt is configured."""
+
+
+def _clean_draft_body(body: str) -> str:
+    cleaned = body.replace("\r\n", "\n").replace("\r", "\n").strip()
+    return _DRAFT_LABEL_RE.sub("", cleaned, count=1).strip()
+
+
+def _extract_cited_chunk_ids(body: str, raw_cited: list[Any] | None = None) -> list[str]:
+    cited_chunk_ids: list[str] = []
+
+    for ref in raw_cited or []:
+        if isinstance(ref, str):
+            ref = ref.replace("chunk:", "").strip()
+            try:
+                uuid_lib.UUID(ref)
+                cited_chunk_ids.append(ref)
+            except ValueError:
+                pass
+
+    for chunk_id in _CHUNK_UUID_RE.findall(body):
+        if chunk_id not in cited_chunk_ids:
+            cited_chunk_ids.append(chunk_id)
+
+    return cited_chunk_ids
+
+
+def _decode_json_string_fragment(fragment: str) -> str:
+    try:
+        return json.loads(f'"{fragment}"')
+    except json.JSONDecodeError:
+        repaired = fragment.rstrip("\\")
+        repaired = re.sub(
+            r"\\u([0-9a-fA-F]{4})",
+            lambda match: chr(int(match.group(1), 16)),
+            repaired,
+        )
+        repaired = (
+            repaired
+            .replace(r"\/", "/")
+            .replace(r"\n", "\n")
+            .replace(r"\r", "\r")
+            .replace(r"\t", "\t")
+            .replace(r"\"", '"')
+            .replace(r"\\", "\\")
+        )
+        return repaired
+
+
+def _extract_json_string_field(raw_content: str, field_name: str) -> str | None:
+    match = re.search(rf'"{re.escape(field_name)}"\s*:\s*"', raw_content)
+    if match is None:
+        return None
+
+    fragment_parts: list[str] = []
+    escaped = False
+
+    for char in raw_content[match.end():]:
+        if escaped:
+            fragment_parts.append(f"\\{char}")
+            escaped = False
+            continue
+
+        if char == "\\":
+            escaped = True
+            continue
+
+        if char == '"':
+            break
+
+        fragment_parts.append(char)
+
+    if escaped:
+        fragment_parts.append("\\")
+
+    if not fragment_parts:
+        return None
+
+    return _decode_json_string_fragment("".join(fragment_parts))
+
+
+def _parse_draft_response(raw_content: str) -> dict[str, Any]:
+    try:
+        parsed = json.loads(raw_content)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        extracted_body = _extract_json_string_field(raw_content, "body")
+        body = _clean_draft_body(extracted_body or raw_content)
+        return {
+            "body": body,
+            "cited_chunk_ids": _extract_cited_chunk_ids(body),
+            "confidence": 0.5,
+            "unresolved_questions": [],
+            "send_ready": False,
+        }
+
+    if not isinstance(parsed, dict):
+        body = _clean_draft_body(str(raw_content))
+        return {
+            "body": body,
+            "cited_chunk_ids": _extract_cited_chunk_ids(body),
+            "confidence": 0.5,
+            "unresolved_questions": [],
+            "send_ready": False,
+        }
+
+    body = _clean_draft_body(str(parsed.get("body", raw_content)))
+    raw_confidence = parsed.get("confidence", 0.5)
+    if isinstance(raw_confidence, str):
+        confidence_map = {"low": 0.3, "medium": 0.55, "high": 0.9}
+        confidence = confidence_map.get(raw_confidence.lower(), 0.5)
+    else:
+        confidence = float(raw_confidence)
+
+    unresolved_questions = list(parsed.get("unresolved_questions", []))
+    cited_chunk_ids = _extract_cited_chunk_ids(body, parsed.get("cited_evidence", []))
+
+    model_send_ready = parsed.get("send_ready")
+    if model_send_ready is not None:
+        send_ready = bool(model_send_ready)
+    else:
+        send_ready = confidence >= 0.7 and len(cited_chunk_ids) > 0
+
+    return {
+        "body": body,
+        "cited_chunk_ids": cited_chunk_ids,
+        "confidence": confidence,
+        "unresolved_questions": unresolved_questions,
+        "send_ready": send_ready,
+    }
 
 
 def generate_draft(conn: Connection, ticket_id: str) -> dict[str, Any]:
@@ -133,52 +264,12 @@ def generate_draft(conn: Connection, ticket_id: str) -> dict[str, Any]:
 
     raw_content = result["content"]
 
-    # 7. Parse the model response (expects JSON; falls back to plain text)
-    body: str
-    cited_chunk_ids: list[str]
-    confidence: float
-    unresolved_questions: list[str]
-    send_ready: bool
-
-    try:
-        parsed = json.loads(raw_content)
-        body = str(parsed.get("body", raw_content))
-        raw_confidence = parsed.get("confidence", 0.5)
-        if isinstance(raw_confidence, str):
-            confidence_map = {"low": 0.3, "medium": 0.55, "high": 0.9}
-            confidence = confidence_map.get(raw_confidence.lower(), 0.5)
-        else:
-            confidence = float(raw_confidence)
-        unresolved_questions = list(parsed.get("unresolved_questions", []))
-
-        raw_cited: list[Any] = parsed.get("cited_evidence", [])
-        cited_chunk_ids = []
-        for ref in raw_cited:
-            if isinstance(ref, str):
-                ref = ref.replace("chunk:", "").strip()
-                try:
-                    uuid_lib.UUID(ref)
-                    cited_chunk_ids.append(ref)
-                except ValueError:
-                    pass
-
-        # Also capture any [chunk:UUID] markers embedded in the body text
-        for bid in _CHUNK_UUID_RE.findall(body):
-            if bid not in cited_chunk_ids:
-                cited_chunk_ids.append(bid)
-
-        model_send_ready = parsed.get("send_ready")
-        if model_send_ready is not None:
-            send_ready = bool(model_send_ready)
-        else:
-            send_ready = confidence >= 0.7 and len(cited_chunk_ids) > 0
-
-    except (json.JSONDecodeError, TypeError, ValueError):
-        body = raw_content
-        cited_chunk_ids = _CHUNK_UUID_RE.findall(raw_content)
-        confidence = 0.5
-        unresolved_questions = []
-        send_ready = False
+    parsed_draft = _parse_draft_response(raw_content)
+    body = parsed_draft["body"]
+    cited_chunk_ids = parsed_draft["cited_chunk_ids"]
+    confidence = parsed_draft["confidence"]
+    unresolved_questions = parsed_draft["unresolved_questions"]
+    send_ready = parsed_draft["send_ready"]
 
     # Enforce: no cited evidence → send_ready must be false
     if not cited_chunk_ids:
