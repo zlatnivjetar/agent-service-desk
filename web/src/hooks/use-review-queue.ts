@@ -5,12 +5,31 @@ import { ticketDetailQueryKey } from "@/hooks/use-ticket-detail"
 import type { ApprovalRequest, ApprovalResponse, DraftQueueItem, PaginatedResponse } from "@/types/api"
 
 export function useReviewQueue(
-  params: { page: number; per_page: number },
+  params: {
+    page: number
+    per_page: number
+    confidence_max?: number | null
+    created_before?: string | null
+    sort_by?: string
+    sort_order?: string
+  },
   options?: { enabled?: boolean }
 ) {
   const searchParams = new URLSearchParams()
   searchParams.set("page", String(params.page))
   searchParams.set("per_page", String(params.per_page))
+  if (params.confidence_max != null) {
+    searchParams.set("confidence_max", String(params.confidence_max))
+  }
+  if (params.created_before) {
+    searchParams.set("created_before", params.created_before)
+  }
+  if (params.sort_by) {
+    searchParams.set("sort_by", params.sort_by)
+  }
+  if (params.sort_order) {
+    searchParams.set("sort_order", params.sort_order)
+  }
 
   return useQuery({
     queryKey: ["reviews", params],

@@ -1,3 +1,4 @@
+from datetime import date, datetime
 from typing import Annotated, Optional
 from uuid import UUID
 
@@ -64,9 +65,13 @@ def list_tickets(
     per_page: int = Query(25, ge=1, le=100),
     status: Optional[str] = Query(None),
     priority: Optional[str] = Query(None),
+    assignee: Optional[str] = Query(None),
     assignee_id: Optional[UUID] = Query(None),
     category: Optional[str] = Query(None),
     team: Optional[str] = Query(None),
+    created_from: Optional[date] = Query(None),
+    created_to: Optional[date] = Query(None),
+    updated_before: Optional[datetime] = Query(None),
     sort_by: str = Query("created_at"),
     sort_order: str = Query("desc"),
 ):
@@ -76,9 +81,13 @@ def list_tickets(
         per_page=per_page,
         status=status,
         priority=priority,
+        assignee=assignee,
         assignee_id=str(assignee_id) if assignee_id else None,
         category=category,
         team=team,
+        created_from=created_from,
+        created_to=created_to,
+        updated_before=updated_before,
         sort_by=sort_by,
         sort_order=sort_order,
     )

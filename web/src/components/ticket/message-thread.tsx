@@ -48,7 +48,7 @@ export function MessageThread({ messages }: { messages: TicketMessage[] }) {
                   className={cn(
                     "rounded-xl border p-4 transition-colors",
                     message.is_internal
-                      ? "border-warning-border bg-warning-soft shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+                      ? "border-warning-border bg-warning-soft surface-shadow-sm"
                       : message.sender_type === "agent" || message.sender_type === "system"
                         ? "border-primary-border bg-primary-soft"
                         : "border-border/80 bg-background"

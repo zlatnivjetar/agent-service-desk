@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { RunEvalForm } from "@/components/eval/run-eval-form"
@@ -9,10 +10,16 @@ import { EvalComparisonView } from "@/components/eval/eval-comparison"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PageLoading } from "@/components/ui/page-loading"
+import { AppPage, PageHeader } from "@/components/app-page"
 
-export default function EvalsPage() {
+function EvalsPageContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const { data: user, isPending } = useCurrentUser()
-  const [activeTab, setActiveTab] = useState("run")
+  const activeTab =
+    searchParams.get("tab") === "runs" || searchParams.get("tab") === "compare"
+      ? (searchParams.get("tab") as "run" | "runs" | "compare")
+      : "run"
   const [selectedRunIds, setSelectedRunIds] = useState<string[]>([])
 
   if (isPending) return <PageLoading />
@@ -29,25 +36,28 @@ export default function EvalsPage() {
   }
 
   function handleRunStarted() {
-    setActiveTab("runs")
+    router.replace("/evals?tab=runs")
   }
 
   function handleCompare() {
-    setActiveTab("compare")
+    router.replace("/evals?tab=compare")
   }
 
   const compareDisabled = selectedRunIds.length !== 2
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Eval Console</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Run evaluations and compare prompt versions.
-        </p>
-      </div>
+    <AppPage>
+      <PageHeader
+        title="Eval Console"
+        meta={<p>Run evaluations and compare prompt versions.</p>}
+      />
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => {
+          router.replace(value === "run" ? "/evals" : `/evals?tab=${value}`)
+        }}
+      >
         <TabsList>
           <TabsTrigger value="run" className="cursor-pointer">
             Run Evaluation
@@ -104,6 +114,14 @@ export default function EvalsPage() {
           )}
         </TabsContent>
       </Tabs>
-    </div>
+    </AppPage>
+  )
+}
+
+export default function EvalsPage() {
+  return (
+    <Suspense>
+      <EvalsPageContent />
+    </Suspense>
   )
 }

@@ -67,6 +67,7 @@ Each semantic color can also have soft and border companions for low-contrast su
 - Use a 4px / 8px spacing rhythm.
 - App shell padding should be consistent across Tickets, Reviews, Knowledge, Evals, and ticket detail.
 - Page headers should use one vertical pattern: title, then subdued metadata line.
+- Top-of-page rhythm should be fixed across primary app pages: same inset from the top divider, same header-to-filter spacing, and same filter-to-content spacing.
 - Dense tables and card lists should align to the same content gutter instead of adding page-specific padding stacks.
 
 ## Button Hierarchy
@@ -97,12 +98,24 @@ All read-only status chips use the same structure:
 
 Tone mapping:
 
-- brand: new, client visible, agent-owned, selected count
-- info: open, customer, processing
+- brand: client visible, agent-owned, selected count
+- info: customer, processing
 - warning: pending customer, pending internal, pending review, high priority, escalated
-- success: resolved, indexed, completed, approved, high confidence
+- success: indexed, completed, approved, high confidence
 - danger: failed, rejected, critical
-- neutral: closed, internal, system, unknown, low priority
+- neutral: new, closed, internal, system, unknown, low priority
+
+Status nuance:
+
+- `new` should use the strongest neutral shade so it reads as fresh work, not complete work.
+- `open` should use the product teal so active work aligns with the dashboard's primary accent.
+- `resolved` should use a muted sage rather than a bright green.
+- `closed` should use the lighter neutral shade so it recedes.
+- Pending states can share the same warning hue when they appear together in dense dashboard views.
+- `medium` priority should sit in a brown family rather than a cool blue.
+- `critical` priority should use a deeper terracotta than `high`, so it reads as the strongest urgency without introducing a bright alert red.
+- Destructive actions and low-confidence danger states should use that same urgent terracotta family rather than a separate bright red.
+- The critical dot may use a very brief once-per-second pulse, but only on the dot indicator and only when motion remains subtle.
 
 Avoid:
 

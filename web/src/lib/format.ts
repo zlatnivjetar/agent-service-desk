@@ -1,3 +1,5 @@
+type TimeZoneSetting = "browser" | "UTC"
+
 export function formatRelativeTime(dateString: string): string {
   const seconds = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000)
   if (seconds < 60) return `${Math.max(seconds, 0)}s ago`
@@ -20,12 +22,31 @@ export function formatCategory(value: string | null | undefined): string {
     .join(" ")
 }
 
-export function formatDateTime(dateString: string): string {
+function resolveTimeZone(setting: TimeZoneSetting) {
+  return setting === "UTC" ? "UTC" : undefined
+}
+
+export function formatDateTime(
+  dateString: string,
+  timeZone: TimeZoneSetting = "browser"
+): string {
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
+    timeZone: resolveTimeZone(timeZone),
+  }).format(new Date(dateString))
+}
+
+export function formatShortDate(
+  dateString: string,
+  timeZone: TimeZoneSetting = "browser"
+): string {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: resolveTimeZone(timeZone),
   }).format(new Date(dateString))
 }

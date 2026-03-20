@@ -8,11 +8,10 @@ const cardVariants = cva(
   {
     variants: {
       variant: {
-        default: "border-0 bg-card shadow-sm ring-1 ring-foreground/8",
+        default: "border-0 bg-card ring-1 ring-border/70 surface-shadow-sm",
         flat: "bg-card",
-        elevated: "border-0 bg-card shadow-md ring-1 ring-foreground/8",
-        interactive:
-          "border-0 bg-card shadow-sm ring-1 ring-foreground/8 transition-shadow duration-200 hover:shadow-md",
+        elevated: "border-0 bg-card ring-1 ring-border/80 surface-shadow-md",
+        interactive: "border-0 bg-card ring-1 ring-border/70 surface-shadow-sm",
       },
     },
     defaultVariants: {

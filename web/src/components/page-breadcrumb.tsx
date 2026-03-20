@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/breadcrumb"
 
 const ROUTE_LABELS: Record<string, string> = {
+  overview: "Overview",
   tickets: "Tickets",
   reviews: "Review Queue",
   knowledge: "Knowledge",

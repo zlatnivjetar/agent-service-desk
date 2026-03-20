@@ -314,6 +314,49 @@ CREATE TABLE eval_results (
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Dashboard preferences ---------------------------------------------------------
+
+CREATE TABLE dashboard_preferences (
+    user_id                         UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    workspace_id                    UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    landing_page                    TEXT NOT NULL DEFAULT 'overview'
+        CHECK (landing_page IN ('overview', 'tickets')),
+    time_zone                       TEXT NOT NULL DEFAULT 'browser'
+        CHECK (time_zone IN ('browser', 'UTC')),
+    overview_density                TEXT NOT NULL DEFAULT 'comfortable'
+        CHECK (overview_density IN ('comfortable', 'compact')),
+    tickets_density                 TEXT NOT NULL DEFAULT 'comfortable'
+        CHECK (tickets_density IN ('comfortable', 'compact')),
+    overview_visible_columns        TEXT[] NOT NULL DEFAULT ARRAY[
+        'subject', 'status', 'priority', 'created', 'assignee', 'category'
+    ],
+    tickets_visible_columns         TEXT[] NOT NULL DEFAULT ARRAY[
+        'subject', 'status', 'priority', 'created', 'assignee', 'org', 'category', 'confidence'
+    ],
+    overview_auto_refresh_seconds   INT NOT NULL DEFAULT 30
+        CHECK (overview_auto_refresh_seconds IN (0, 30, 60)),
+    tickets_auto_refresh_seconds    INT NOT NULL DEFAULT 0
+        CHECK (tickets_auto_refresh_seconds IN (0, 30, 60)),
+    overview_default_view_id        UUID,
+    tickets_default_view_id         UUID,
+    created_at                      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at                      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Dashboard saved views ---------------------------------------------------------
+
+CREATE TABLE dashboard_saved_views (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    workspace_id    UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    page            TEXT NOT NULL CHECK (page IN ('overview', 'tickets')),
+    name            TEXT NOT NULL,
+    state           JSONB NOT NULL DEFAULT '{}',
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, page, name)
+);
+
 
 -- ============================================================================
 -- Indexes
@@ -342,6 +385,9 @@ CREATE INDEX idx_eval_runs_eval_set_id ON eval_runs(eval_set_id);
 CREATE INDEX idx_eval_runs_prompt_version_id ON eval_runs(prompt_version_id);
 CREATE INDEX idx_eval_results_eval_run_id ON eval_results(eval_run_id);
 CREATE INDEX idx_eval_results_example_id ON eval_results(eval_example_id);
+CREATE INDEX idx_dashboard_preferences_workspace_user ON dashboard_preferences(workspace_id, user_id);
+CREATE INDEX idx_dashboard_saved_views_workspace_user_page
+    ON dashboard_saved_views(workspace_id, user_id, page);
 
 -- Ticket queue composite indexes (workspace + status + priority is the main queue query)
 CREATE INDEX idx_tickets_queue ON tickets(workspace_id, status, priority);
@@ -427,6 +473,8 @@ ALTER TABLE eval_sets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE eval_examples ENABLE ROW LEVEL SECURITY;
 ALTER TABLE eval_runs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE eval_results ENABLE ROW LEVEL SECURITY;
+ALTER TABLE dashboard_preferences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE dashboard_saved_views ENABLE ROW LEVEL SECURITY;
 
 -- SLA policies, prompt versions, and users are not tenant-scoped
 -- (shared reference data or managed by superuser)
@@ -590,6 +638,30 @@ CREATE POLICY eval_run_access ON eval_runs
 CREATE POLICY eval_result_access ON eval_results
     FOR ALL TO rls_user
     USING (current_user_role() = 'team_lead');
+
+-- Dashboard preferences: current user only
+CREATE POLICY dashboard_preferences_access ON dashboard_preferences
+    FOR ALL TO rls_user
+    USING (
+        workspace_id = current_workspace_id()
+        AND user_id = current_user_id()
+    )
+    WITH CHECK (
+        workspace_id = current_workspace_id()
+        AND user_id = current_user_id()
+    );
+
+-- Dashboard saved views: current user only
+CREATE POLICY dashboard_saved_view_access ON dashboard_saved_views
+    FOR ALL TO rls_user
+    USING (
+        workspace_id = current_workspace_id()
+        AND user_id = current_user_id()
+    )
+    WITH CHECK (
+        workspace_id = current_workspace_id()
+        AND user_id = current_user_id()
+    );
 
 
 -- ============================================================================

@@ -13,7 +13,7 @@ export function proxy(request: NextRequest) {
   // Already on login — redirect authenticated users away
   if (pathname === "/login") {
     if (hasSession) {
-      return NextResponse.redirect(new URL("/tickets", request.url));
+      return NextResponse.redirect(new URL("/", request.url));
     }
     return NextResponse.next();
   }

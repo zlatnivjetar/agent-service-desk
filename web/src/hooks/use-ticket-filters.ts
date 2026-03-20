@@ -3,11 +3,18 @@
 import { useRouter, useSearchParams } from "next/navigation"
 import { useCallback } from "react"
 
+import { getDefaultRangePreset, getRangeBounds } from "@/lib/dashboard"
+
 export interface TicketFilters {
   status: string | null
   priority: string | null
   category: string | null
   team: string | null
+  assignee: string | null
+  range: "7d" | "30d" | "90d" | "custom"
+  from: string | null
+  to: string | null
+  updated_before: string | null
 }
 
 export function useTicketFilters() {
@@ -19,6 +26,11 @@ export function useTicketFilters() {
     priority: searchParams.get("priority"),
     category: searchParams.get("category"),
     team: searchParams.get("team"),
+    assignee: searchParams.get("assignee"),
+    range: getDefaultRangePreset(searchParams.get("range")),
+    from: searchParams.get("from"),
+    to: searchParams.get("to"),
+    updated_before: searchParams.get("updated_before"),
   }
 
   const page = Number(searchParams.get("page") ?? 1)
@@ -39,12 +51,36 @@ export function useTicketFilters() {
     [searchParams, router],
   )
 
+  const setRange = useCallback(
+    (range: TicketFilters["range"]) => {
+      const next = new URLSearchParams(searchParams.toString())
+      next.set("range", range)
+      if (range === "custom") {
+        const currentRange = getDefaultRangePreset(searchParams.get("range"))
+        const seededRange = getRangeBounds(
+          currentRange,
+          searchParams.get("from"),
+          searchParams.get("to"),
+        )
+        next.set("from", searchParams.get("from") ?? seededRange.from)
+        next.set("to", searchParams.get("to") ?? seededRange.to)
+      } else {
+        next.delete("from")
+        next.delete("to")
+      }
+      next.set("page", "1")
+      router.push(`?${next.toString()}`)
+    },
+    [searchParams, router],
+  )
+
   const clearFilters = useCallback(() => {
     const next = new URLSearchParams()
     const sb = searchParams.get("sort_by")
     const so = searchParams.get("sort_order")
     if (sb) next.set("sort_by", sb)
     if (so) next.set("sort_order", so)
+    next.set("range", "30d")
     router.push(`?${next.toString()}`)
   }, [searchParams, router])
 
@@ -71,11 +107,21 @@ export function useTicketFilters() {
     [searchParams, router],
   )
 
-  const hasActiveFilters = Object.values(filters).some((v) => v !== null)
+  const hasActiveFilters =
+    filters.range !== "30d" ||
+    !!filters.status ||
+    !!filters.priority ||
+    !!filters.category ||
+    !!filters.team ||
+    !!filters.assignee ||
+    !!filters.from ||
+    !!filters.to ||
+    !!filters.updated_before
 
   return {
     filters,
     setFilter,
+    setRange,
     clearFilters,
     hasActiveFilters,
     sortBy,

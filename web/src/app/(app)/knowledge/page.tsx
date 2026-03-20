@@ -29,6 +29,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { KnowledgeStatusBadge, VisibilityBadge } from "@/components/ui/status-badges"
 import { FilterBar } from "@/components/ui/filter-bar"
 import { FilterSelect, type FilterOption } from "@/components/ui/filter-select"
+import { AppPage, PageHeader } from "@/components/app-page"
 import { formatRelativeTime } from "@/lib/format"
 import type { KnowledgeDocListItem } from "@/types/api"
 
@@ -232,6 +233,7 @@ function KnowledgePageContent() {
 
   const status = searchParams.get("status")
   const visibility = searchParams.get("visibility")
+  const stalled = searchParams.get("stalled") === "true"
   const page = Math.max(1, Number(searchParams.get("page") ?? "1"))
 
   const [uploadOpen, setUploadOpen] = useState(false)
@@ -260,7 +262,13 @@ function KnowledgePageContent() {
   }
 
   const { data, isLoading, isError, refetch } = useKnowledgeDocs(
-    { page, per_page: 20, status: status || null, visibility: visibility || null },
+    {
+      page,
+      per_page: 20,
+      status: status || null,
+      visibility: visibility || null,
+      stalled: stalled || null,
+    },
     { enabled: !userPending && !isClientUser }
   )
 
@@ -288,31 +296,29 @@ function KnowledgePageContent() {
     return <PageError message="Failed to load knowledge documents." onRetry={() => refetch()} />
   }
 
-  const hasActiveFilters = !!(status || visibility)
+  const hasActiveFilters = !!(status || visibility || stalled)
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Knowledge Base
-          </h1>
-          {data && (
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {total.toLocaleString()}{" "}
-              {total === 1 ? "document" : "documents"}
-            </p>
-          )}
-        </div>
-        <Button
-          onClick={() => setUploadOpen(true)}
-          className="cursor-pointer shrink-0"
-        >
-          <Upload className="mr-2 size-4" />
-          Upload Document
-        </Button>
-      </div>
+    <AppPage>
+      <PageHeader
+        title="Knowledge Base"
+        meta={
+          <p className="min-h-5">
+            {data
+              ? `${total.toLocaleString()} ${total === 1 ? "document" : "documents"}`
+              : "\u00A0"}
+          </p>
+        }
+        actions={
+          <Button
+            onClick={() => setUploadOpen(true)}
+            className="cursor-pointer shrink-0"
+          >
+            <Upload className="mr-2 size-4" />
+            Upload Document
+          </Button>
+        }
+      />
 
       {/* Filter bar */}
       <FilterBar onClear={clearFilters} hasActiveFilters={hasActiveFilters}>
@@ -331,6 +337,12 @@ function KnowledgePageContent() {
           className="w-44"
         />
       </FilterBar>
+
+      {stalled ? (
+        <p className="text-sm text-muted-foreground">
+          Showing processing documents older than 15 minutes.
+        </p>
+      ) : null}
 
       {/* Document list */}
       {isLoading ? (
@@ -392,7 +404,7 @@ function KnowledgePageContent() {
       )}
 
       <UploadDialog open={uploadOpen} onOpenChange={setUploadOpen} />
-    </div>
+    </AppPage>
   )
 }
 

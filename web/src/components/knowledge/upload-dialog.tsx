@@ -36,6 +36,8 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const uploadMutation = useUploadDocument()
+  const visibilityLabel =
+    visibility === "client_visible" ? "Client visible" : "Internal only"
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const selected = e.target.files?.[0] ?? null
@@ -112,7 +114,7 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
             <Label htmlFor="doc-visibility">Visibility</Label>
             <Select value={visibility} onValueChange={(v) => setVisibility(v ?? "internal")}>
               <SelectTrigger id="doc-visibility" className="w-full">
-                <SelectValue />
+                <SelectValue>{visibilityLabel}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="internal">Internal only</SelectItem>

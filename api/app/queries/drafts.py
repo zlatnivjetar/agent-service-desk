@@ -1,16 +1,39 @@
+from datetime import datetime
 from typing import Optional
 
 from psycopg import Connection
+
+_ALLOWED_SORT_COLUMNS = {"created_at", "confidence"}
+_ALLOWED_SORT_ORDERS = {"asc", "desc"}
 
 
 def list_pending_drafts(
     conn: Connection,
     page: int,
     per_page: int,
+    confidence_max: Optional[float],
+    created_before: Optional[datetime],
+    sort_by: str,
+    sort_order: str,
 ) -> tuple[int, list[dict]]:
+    if sort_by not in _ALLOWED_SORT_COLUMNS:
+        sort_by = "created_at"
+    if sort_order not in _ALLOWED_SORT_ORDERS:
+        sort_order = "asc"
+
+    where_clauses = ["(dg.approval_outcome = 'pending' OR dg.approval_outcome IS NULL)"]
+    params: list = []
+
+    if confidence_max is not None:
+        where_clauses.append("dg.confidence <= %s")
+        params.append(confidence_max)
+    if created_before is not None:
+        where_clauses.append("dg.created_at <= %s")
+        params.append(created_before)
+
     # Single query: window function replaces separate COUNT(*) query
     rows = conn.execute(
-        """
+        f"""
         SELECT
             dg.id AS draft_generation_id,
             dg.ticket_id,
@@ -23,11 +46,11 @@ def list_pending_drafts(
             COUNT(*) OVER() AS total_count
         FROM draft_generations dg
         JOIN tickets t ON t.id = dg.ticket_id
-        WHERE dg.approval_outcome = 'pending' OR dg.approval_outcome IS NULL
-        ORDER BY dg.created_at ASC
+        WHERE {' AND '.join(where_clauses)}
+        ORDER BY dg.{sort_by} {sort_order}
         LIMIT %s OFFSET %s
         """,
-        [per_page, (page - 1) * per_page],
+        params + [per_page, (page - 1) * per_page],
     ).fetchall()
     total = rows[0]["total_count"] if rows else 0
 

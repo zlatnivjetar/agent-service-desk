@@ -4,8 +4,6 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import {
   BADGE_TONE_DOT_CLASSNAMES,
-  TICKET_STATUS_STYLES,
-  TICKET_PRIORITY_STYLES,
   KNOWLEDGE_STATUS_STYLES,
   APPROVAL_OUTCOME_STYLES,
   SENDER_STYLES,
@@ -14,6 +12,8 @@ import {
   ROLE_STYLES,
   FALLBACK_STYLE,
   getConfidenceStyle,
+  getTicketPriorityStyle,
+  getTicketStatusStyle,
   type BadgeStyleEntry,
 } from "@/lib/badge-styles"
 
@@ -34,6 +34,7 @@ function ReadOnlyBadge({
         style.pulseDot && "animate-pulse",
         style.dotClassName
       )}
+      dotStyle={style.dotColorVar ? { backgroundColor: style.dotColorVar } : undefined}
     >
       {children ?? style.label}
     </Badge>
@@ -41,12 +42,12 @@ function ReadOnlyBadge({
 }
 
 export function TicketStatusBadge({ status }: { status: string }) {
-  const style = TICKET_STATUS_STYLES[status as keyof typeof TICKET_STATUS_STYLES] ?? FALLBACK_STYLE
+  const style = getTicketStatusStyle(status)
   return <ReadOnlyBadge style={style} />
 }
 
 export function TicketPriorityBadge({ priority }: { priority: string }) {
-  const style = TICKET_PRIORITY_STYLES[priority as keyof typeof TICKET_PRIORITY_STYLES] ?? FALLBACK_STYLE
+  const style = getTicketPriorityStyle(priority)
   return <ReadOnlyBadge style={style} />
 }
 

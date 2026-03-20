@@ -11,6 +11,7 @@ export interface KnowledgeParams {
   per_page?: number
   status?: string | null
   visibility?: string | null
+  stalled?: boolean | null
 }
 
 export function useKnowledgeDocs(

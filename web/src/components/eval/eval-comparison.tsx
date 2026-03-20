@@ -101,7 +101,7 @@ export function EvalComparisonView({ runAId, runBId }: EvalComparisonProps) {
   return (
     <div className="space-y-6">
       {/* Run labels */}
-      <div className="grid grid-cols-2 gap-4 rounded-xl border bg-card p-4 text-center shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      <div className="grid grid-cols-2 gap-4 rounded-xl border bg-card p-4 text-center surface-shadow-sm">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Run A
@@ -122,7 +122,7 @@ export function EvalComparisonView({ runAId, runBId }: EvalComparisonProps) {
 
       {/* Metrics comparison panel */}
       {metricRows.length > 0 && (
-        <div className="overflow-x-auto rounded-xl border bg-card shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+        <div className="overflow-x-auto rounded-xl border bg-card surface-shadow-sm">
           <Table>
             <TableHeader>
               <TableRow>
@@ -150,7 +150,7 @@ export function EvalComparisonView({ runAId, runBId }: EvalComparisonProps) {
 
       {/* Side-by-side example results */}
       {exampleIds.length > 0 && (
-        <div className="overflow-x-auto rounded-xl border bg-card shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+        <div className="overflow-x-auto rounded-xl border bg-card surface-shadow-sm">
           <Table>
             <TableHeader>
               <TableRow>

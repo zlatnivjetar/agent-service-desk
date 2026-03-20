@@ -9,7 +9,7 @@ const badgeVariants = cva(
     variants: {
       variant: {
         default:
-          "border-neutral-border bg-background text-foreground shadow-[0_1px_2px_rgba(15,23,42,0.04)]",
+          "border-border bg-secondary text-foreground",
         secondary:
           "border-border bg-background text-secondary-foreground",
         destructive:
@@ -30,11 +30,13 @@ function Badge({
   className,
   variant = "default",
   dotClassName,
+  dotStyle,
   children,
   ...props
 }: React.ComponentProps<"span"> &
   VariantProps<typeof badgeVariants> & {
     dotClassName?: string
+    dotStyle?: React.CSSProperties
   }) {
   return (
     <span
@@ -43,10 +45,11 @@ function Badge({
       className={cn(badgeVariants({ variant }), className)}
       {...props}
     >
-      {dotClassName ? (
+      {dotClassName || dotStyle ? (
         <span
           aria-hidden="true"
           className={cn("size-2 shrink-0 rounded-full", dotClassName)}
+          style={dotStyle}
         />
       ) : null}
       {children}

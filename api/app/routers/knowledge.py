@@ -31,6 +31,7 @@ def list_documents(
     per_page: int = Query(25, ge=1, le=100),
     status: Optional[str] = Query(None),
     visibility: Optional[str] = Query(None),
+    stalled: Optional[bool] = Query(None),
 ):
     total, rows = q.list_documents(
         conn=db,
@@ -38,6 +39,7 @@ def list_documents(
         per_page=per_page,
         status=status,
         visibility=visibility,
+        stalled=stalled,
     )
     items = [KnowledgeDocListItem.model_validate(row) for row in rows]
     return PaginatedResponse(

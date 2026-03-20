@@ -11,6 +11,9 @@ import { useCurrentUser } from "@/hooks/use-current-user"
 import { Button } from "@/components/ui/button"
 import { PageError } from "@/components/ui/page-error"
 import { Card, CardContent } from "@/components/ui/card"
+import { FilterBar } from "@/components/ui/filter-bar"
+import { FilterSelect, type FilterOption } from "@/components/ui/filter-select"
+import { AppPage, PageHeader } from "@/components/app-page"
 import {
   Dialog,
   DialogContent,
@@ -25,6 +28,19 @@ import { ConfidenceBadge } from "@/components/ui/status-badges"
 import { getErrorMessage } from "@/components/ticket/ticket-ui"
 import type { DraftQueueItem } from "@/types/api"
 
+const CONFIDENCE_OPTIONS: FilterOption[] = [
+  { value: "0.5", label: "50% or lower" },
+  { value: "0.7", label: "70% or lower" },
+  { value: "0.9", label: "90% or lower" },
+]
+
+const SORT_OPTIONS: FilterOption[] = [
+  { value: "created_at.asc", label: "Oldest first" },
+  { value: "created_at.desc", label: "Newest first" },
+  { value: "confidence.asc", label: "Lowest confidence" },
+  { value: "confidence.desc", label: "Highest confidence" },
+]
+
 function formatSecondsAgo(seconds: number): string {
   if (seconds < 60) return `${Math.max(Math.round(seconds), 0)}s ago`
   const minutes = Math.floor(seconds / 60)
@@ -38,10 +54,22 @@ function ReviewQueueContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const page = Math.max(1, Number(searchParams.get("page") ?? "1"))
+  const confidenceMax = searchParams.get("confidence_max")
+  const createdBefore = searchParams.get("created_before")
+  const sortBy = searchParams.get("sort_by") ?? "created_at"
+  const sortOrder = searchParams.get("sort_order") ?? "asc"
+  const selectedSort = `${sortBy}.${sortOrder}`
 
   const { data: user, isPending: userPending } = useCurrentUser()
   const { data, isLoading, isError, refetch } = useReviewQueue(
-    { page, per_page: 20 },
+    {
+      page,
+      per_page: 20,
+      confidence_max: confidenceMax ? Number(confidenceMax) : null,
+      created_before: createdBefore,
+      sort_by: sortBy,
+      sort_order: sortOrder,
+    },
     { enabled: !userPending && user?.role !== "client_user" }
   )
 
@@ -68,17 +96,63 @@ function ReviewQueueContent() {
     router.push(`?${params}`)
   }
 
+  function setParam(key: string, value: string | null) {
+    const params = new URLSearchParams(searchParams.toString())
+    if (value == null || value === "") {
+      params.delete(key)
+    } else {
+      params.set(key, value)
+    }
+    params.set("page", "1")
+    router.push(`?${params}`)
+  }
+
+  function clearFilters() {
+    router.push("?")
+  }
+
+  function setSorting(by: string, order: string) {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("sort_by", by)
+    params.set("sort_order", order)
+    params.set("page", "1")
+    router.push(`?${params}`)
+  }
+
+  const hasActiveFilters = !!(confidenceMax || createdBefore || searchParams.get("sort_by") || searchParams.get("sort_order"))
+
   return (
-    <div className="space-y-6">
-      {/* Page header */}
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Review Queue</h1>
-        {!isLoading && data && (
-          <p className="mt-1 text-sm text-muted-foreground">
-            {data.total} {data.total === 1 ? "draft" : "drafts"} pending review
+    <AppPage>
+      <PageHeader
+        title="Review Queue"
+        meta={
+          <p className="min-h-5">
+            {!isLoading && data
+              ? `${data.total} ${data.total === 1 ? "draft" : "drafts"} pending review`
+              : "\u00A0"}
           </p>
-        )}
-      </div>
+        }
+      />
+
+      <FilterBar onClear={clearFilters} hasActiveFilters={hasActiveFilters}>
+        <FilterSelect
+          value={confidenceMax}
+          onValueChange={(value) => setParam("confidence_max", value || null)}
+          placeholder="All confidence"
+          options={CONFIDENCE_OPTIONS}
+          className="w-44"
+        />
+        <FilterSelect
+          value={selectedSort}
+          onValueChange={(value) => {
+            const [by, order] = (value || "created_at.asc").split(".")
+            setSorting(by, order ?? "asc")
+          }}
+          placeholder="Sort"
+          options={SORT_OPTIONS}
+          className="w-44"
+        />
+      </FilterBar>
 
       {/* Loading skeletons */}
       {isLoading && (
@@ -155,7 +229,7 @@ function ReviewQueueContent() {
           </div>
         </div>
       )}
-    </div>
+    </AppPage>
   )
 }
 

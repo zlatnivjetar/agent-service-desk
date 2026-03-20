@@ -1,4 +1,5 @@
-from typing import Annotated
+from datetime import datetime
+from typing import Annotated, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -27,9 +28,21 @@ def get_review_queue(
     db: Annotated[Connection, Depends(get_rls_db)],
     page: int = Query(1, ge=1),
     per_page: int = Query(25, ge=1, le=100),
+    confidence_max: Optional[float] = Query(None, ge=0, le=1),
+    created_before: Optional[datetime] = Query(None),
+    sort_by: str = Query("created_at"),
+    sort_order: str = Query("asc"),
 ):
     require_role(user, ["support_agent", "team_lead"])
-    total, rows = q.list_pending_drafts(db, page, per_page)
+    total, rows = q.list_pending_drafts(
+        db,
+        page,
+        per_page,
+        confidence_max=confidence_max,
+        created_before=created_before,
+        sort_by=sort_by,
+        sort_order=sort_order,
+    )
     items = [DraftQueueItem.model_validate(row) for row in rows]
     return PaginatedResponse(
         items=items,

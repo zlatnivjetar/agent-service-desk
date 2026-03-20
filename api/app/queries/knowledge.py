@@ -14,6 +14,7 @@ def list_documents(
     per_page: int,
     status: Optional[str],
     visibility: Optional[str],
+    stalled: Optional[bool],
 ) -> tuple[int, list[dict]]:
     where_clauses: list[str] = []
     params: list = []
@@ -24,6 +25,9 @@ def list_documents(
     if visibility is not None and visibility in _ALLOWED_VISIBILITIES:
         where_clauses.append("visibility = %s")
         params.append(visibility)
+    if stalled:
+        where_clauses.append("status = 'processing'")
+        where_clauses.append("created_at <= now() - interval '15 minutes'")
 
     where_sql = " AND ".join(where_clauses) if where_clauses else "TRUE"
 

@@ -1,3 +1,4 @@
+from datetime import date, datetime
 from typing import Optional
 
 from psycopg import Connection
@@ -34,9 +35,13 @@ def list_tickets(
     per_page: int,
     status: Optional[str],
     priority: Optional[str],
+    assignee: Optional[str],
     assignee_id: Optional[str],
     category: Optional[str],
     team: Optional[str],
+    created_from: Optional[date],
+    created_to: Optional[date],
+    updated_before: Optional[datetime],
     sort_by: str,
     sort_order: str,
 ) -> tuple[int, list[dict]]:
@@ -53,9 +58,17 @@ def list_tickets(
         where_clauses.append("t.status = %s")
         params.append(status)
     if priority is not None:
-        where_clauses.append("t.priority = %s")
-        params.append(priority)
-    if assignee_id is not None:
+        if priority == "high_critical":
+            where_clauses.append("t.priority IN ('high', 'critical')")
+        else:
+            where_clauses.append("t.priority = %s")
+            params.append(priority)
+    if assignee == "unassigned":
+        where_clauses.append("t.assignee_id IS NULL")
+    elif assignee is not None:
+        where_clauses.append("t.assignee_id = %s")
+        params.append(assignee)
+    elif assignee_id is not None:
         where_clauses.append("t.assignee_id = %s")
         params.append(assignee_id)
     if category is not None:
@@ -64,6 +77,15 @@ def list_tickets(
     if team is not None:
         where_clauses.append("t.team = %s")
         params.append(team)
+    if created_from is not None:
+        where_clauses.append("t.created_at::date >= %s")
+        params.append(created_from)
+    if created_to is not None:
+        where_clauses.append("t.created_at::date <= %s")
+        params.append(created_to)
+    if updated_before is not None:
+        where_clauses.append("t.updated_at <= %s")
+        params.append(updated_before)
 
     where_sql = " AND ".join(where_clauses) if where_clauses else "TRUE"
 

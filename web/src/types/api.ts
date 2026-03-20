@@ -31,6 +31,11 @@ export interface CurrentUser {
   name: string
 }
 
+export type DashboardPage = "overview" | "tickets"
+export type DashboardDensity = "comfortable" | "compact"
+export type DashboardTimeZone = "browser" | "UTC"
+export type DashboardRangePreset = "7d" | "30d" | "90d" | "custom"
+
 // Tickets
 export interface TicketListItem {
   id: string
@@ -257,4 +262,95 @@ export interface PromptVersion {
   type: string
   is_active: boolean
   created_at: string
+}
+
+// Dashboard
+export interface LatestEvalSummary {
+  run_id: string
+  eval_set_name: string
+  prompt_version_name: string
+  status: string
+  accuracy?: number | null
+  failed: number
+  created_at: string
+}
+
+export interface DashboardFilters {
+  range: DashboardRangePreset
+  from?: string | null
+  to?: string | null
+  team?: string | null
+  assignee_id?: string | null
+}
+
+export interface DashboardKpis {
+  open_work_queue_count: number
+  pending_review_count: number
+  unassigned_high_critical_count: number
+  knowledge_issue_count: number
+  latest_eval_summary?: LatestEvalSummary | null
+}
+
+export interface TicketsCreatedPoint {
+  date: string
+  count: number
+}
+
+export interface BacklogByStatusPoint {
+  status: string
+  count: number
+}
+
+export interface AgeByPriorityPoint {
+  bucket: "0_1d" | "2_3d" | "4_7d" | "8_14d" | "15d_plus"
+  low: number
+  medium: number
+  high: number
+  critical: number
+}
+
+export interface DashboardOverview {
+  generated_at: string
+  filters: DashboardFilters
+  kpis: DashboardKpis
+  charts: {
+    tickets_created_by_day: TicketsCreatedPoint[]
+    backlog_by_status: BacklogByStatusPoint[]
+    age_by_priority: AgeByPriorityPoint[]
+  }
+}
+
+export interface DashboardWatchlistItem {
+  key: string
+  title: string
+  count: number
+  severity: "critical" | "warning" | "info"
+  reason: string
+  href: string
+}
+
+export interface DashboardWatchlistResponse {
+  watchlist_items: DashboardWatchlistItem[]
+}
+
+export interface DashboardSavedView {
+  id: string
+  page: DashboardPage
+  name: string
+  state: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+export interface DashboardPreferences {
+  landing_page: "overview" | "tickets"
+  time_zone: DashboardTimeZone
+  overview_density: DashboardDensity
+  tickets_density: DashboardDensity
+  overview_visible_columns: string[]
+  tickets_visible_columns: string[]
+  overview_auto_refresh_seconds: 0 | 30 | 60
+  tickets_auto_refresh_seconds: 0 | 30 | 60
+  overview_default_view_id?: string | null
+  tickets_default_view_id?: string | null
 }
