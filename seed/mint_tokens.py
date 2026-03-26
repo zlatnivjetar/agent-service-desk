@@ -81,7 +81,7 @@ conn.close()
 # ---------------------------------------------------------------------------
 # Mint & print
 # ---------------------------------------------------------------------------
-exp = int(time.time()) + 3600  # 1 hour
+exp = int(time.time()) + (90 * 24 * 3600)  # 90 days
 
 filter_name = sys.argv[1].lower() if len(sys.argv) > 1 else None
 
