@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Agent Service Desk</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Arial, sans-serif;
+        background: #f5f6f8;
+        color: #121417;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(circle at top right, rgba(18, 20, 23, 0.08), transparent 36%),
+          linear-gradient(180deg, #f9fafb 0%, #eef1f4 100%);
+      }
+
+      main {
+        width: min(92vw, 32rem);
+        border: 1px solid rgba(18, 20, 23, 0.08);
+        border-radius: 24px;
+        padding: 2rem;
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 20px 50px rgba(18, 20, 23, 0.08);
+      }
+
+      h1 {
+        margin: 0 0 0.75rem;
+        font-size: 1.5rem;
+      }
+
+      p {
+        margin: 0;
+        line-height: 1.6;
+        color: rgba(18, 20, 23, 0.72);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>You are offline</h1>
+      <p>
+        The app shell is available, but live workspace data could not be reached.
+        Reconnect to refresh tickets, reviews, knowledge documents, and eval runs.
+      </p>
+    </main>
+  </body>
+</html>

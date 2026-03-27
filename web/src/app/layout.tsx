@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Providers } from "@/components/providers";
+import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 import "./globals.css";
 
 const inter = Inter({
@@ -11,6 +12,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Agent Service Desk",
   description: "AI-assisted support ticket resolution",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
@@ -22,6 +24,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} antialiased`}>
         <Providers>{children}</Providers>
+        <ServiceWorkerRegistration />
       </body>
     </html>
   );

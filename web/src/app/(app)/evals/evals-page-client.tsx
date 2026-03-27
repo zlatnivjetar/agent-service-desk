@@ -1,26 +1,66 @@
 "use client"
 
-import { useState } from "react"
+import type { ReactNode } from "react"
 import { useSearchParams } from "next/navigation"
 
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { RunEvalForm } from "@/components/eval/run-eval-form"
-import { EvalRunsList } from "@/components/eval/eval-runs-list"
 import { EvalComparisonView } from "@/components/eval/eval-comparison"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PageLoading } from "@/components/ui/page-loading"
 import { AppPage, PageHeader } from "@/components/app-page"
 import { replaceUrl } from "@/lib/url-state"
 
-function EvalsPageContent() {
+function parseSelectedRunIds(value: string | null) {
+  return Array.from(
+    new Set(
+      (value ?? "")
+        .split(",")
+        .map((runId) => runId.trim())
+        .filter(Boolean)
+    )
+  ).slice(0, 2)
+}
+
+function buildEvalsHref(
+  searchParams: Readonly<URLSearchParams>,
+  updates: {
+    tab?: "run" | "runs" | "compare"
+    expandedRunId?: string | null
+  }
+) {
+  const next = new URLSearchParams(searchParams.toString())
+
+  if (updates.tab) {
+    if (updates.tab === "run") {
+      next.delete("tab")
+    } else {
+      next.set("tab", updates.tab)
+    }
+  }
+
+  if ("expandedRunId" in updates) {
+    if (updates.expandedRunId) {
+      next.set("expanded", updates.expandedRunId)
+    } else {
+      next.delete("expanded")
+    }
+  }
+
+  const query = next.toString()
+  return query ? `/evals?${query}` : "/evals"
+}
+
+function EvalsPageContent({ runsSection }: { runsSection: ReactNode }) {
   const searchParams = useSearchParams()
   const { data: user, isPending } = useCurrentUser()
   const activeTab =
     searchParams.get("tab") === "runs" || searchParams.get("tab") === "compare"
       ? (searchParams.get("tab") as "run" | "runs" | "compare")
       : "run"
-  const [selectedRunIds, setSelectedRunIds] = useState<string[]>([])
+  const selectedRunIds = parseSelectedRunIds(searchParams.get("selected"))
 
   if (isPending) return <PageLoading />
 
@@ -36,11 +76,11 @@ function EvalsPageContent() {
   }
 
   function handleRunStarted() {
-    replaceUrl("/evals?tab=runs")
+    replaceUrl(buildEvalsHref(searchParams, { tab: "runs", expandedRunId: null }))
   }
 
   function handleCompare() {
-    replaceUrl("/evals?tab=compare")
+    replaceUrl(buildEvalsHref(searchParams, { tab: "compare" }))
   }
 
   const compareDisabled = selectedRunIds.length !== 2
@@ -55,7 +95,11 @@ function EvalsPageContent() {
       <Tabs
         value={activeTab}
         onValueChange={(value) => {
-          replaceUrl(value === "run" ? "/evals" : `/evals?tab=${value}`)
+          replaceUrl(
+            buildEvalsHref(searchParams, {
+              tab: value as "run" | "runs" | "compare",
+            })
+          )
         }}
       >
         <TabsList>
@@ -89,11 +133,23 @@ function EvalsPageContent() {
         </TabsContent>
 
         <TabsContent value="runs" className="mt-6">
-          <EvalRunsList
-            selectedRunIds={selectedRunIds}
-            onSelectionChange={setSelectedRunIds}
-            onCompare={handleCompare}
-          />
+          <div className="space-y-3">
+            {selectedRunIds.length === 2 ? (
+              <div className="flex flex-col gap-3 rounded-lg border border-primary-border bg-primary-soft px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm font-medium text-foreground">
+                  2 runs selected for comparison
+                </p>
+                <Button
+                  size="sm"
+                  onClick={handleCompare}
+                  className="cursor-pointer"
+                >
+                  Compare
+                </Button>
+              </div>
+            ) : null}
+            {runsSection}
+          </div>
         </TabsContent>
 
         <TabsContent value="compare" className="mt-6">
@@ -118,6 +174,10 @@ function EvalsPageContent() {
   )
 }
 
-export default function EvalsPageClient() {
-  return <EvalsPageContent />
+export default function EvalsPageClient({
+  runsSection,
+}: {
+  runsSection: ReactNode
+}) {
+  return <EvalsPageContent runsSection={runsSection} />
 }

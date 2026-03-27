@@ -10,7 +10,7 @@ import {
   dashboardPreferencesQueryOptions,
   dashboardSavedViewsQueryOptions,
 } from "@/lib/queries/dashboard"
-import { getRouteParamValue, type RouteSearchParams } from "@/lib/route-params"
+import type { RouteSearchParams } from "@/lib/route-params"
 import { getServerAuthContext } from "@/lib/server-auth"
 import { serverApiClient } from "@/lib/server-api-client"
 

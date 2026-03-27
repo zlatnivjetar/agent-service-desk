@@ -1,9 +1,7 @@
 "use client"
 
-import { useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { type ReactNode } from "react"
-import { CheckCircle2 } from "lucide-react"
 
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { FilterBar } from "@/components/ui/filter-bar"
@@ -26,7 +24,6 @@ const SORT_OPTIONS: FilterOption[] = [
 
 function ReviewQueueContent({ listSection }: { listSection: ReactNode }) {
   const searchParams = useSearchParams()
-  const page = Math.max(1, Number(searchParams.get("page") ?? "1"))
   const confidenceMax = searchParams.get("confidence_max")
   const createdBefore = searchParams.get("created_before")
   const sortBy = searchParams.get("sort_by") ?? "created_at"
