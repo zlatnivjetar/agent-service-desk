@@ -1,6 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { apiClient } from "@/lib/api-client"
+import {
+  ticketDetailQueryKey,
+  ticketDetailQueryOptions,
+} from "@/lib/queries/tickets"
 import type {
   ApprovalRequest,
   ApprovalResponse,
@@ -9,14 +13,9 @@ import type {
   TicketPredictionRecord,
 } from "@/types/api"
 
-export function ticketDetailQueryKey(ticketId: string) {
-  return ["ticket", ticketId] as const
-}
-
 export function useTicketDetail(ticketId: string) {
   return useQuery({
-    queryKey: ticketDetailQueryKey(ticketId),
-    queryFn: () => apiClient.get<TicketDetail>(`/tickets/${ticketId}`),
+    ...ticketDetailQueryOptions(ticketId),
     enabled: Boolean(ticketId),
   })
 }

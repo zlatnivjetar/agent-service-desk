@@ -118,3 +118,5 @@ export const apiClient = {
     return request<void>("DELETE", path);
   },
 };
+
+export type ApiClientLike = typeof apiClient;

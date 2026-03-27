@@ -1,57 +1,39 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
-import type {
-  EvalComparison,
-  EvalRunDetail,
-  EvalRunListItem,
-  EvalSetListItem,
-  PromptVersion,
-} from "@/types/api"
+import {
+  evalComparisonQueryOptions,
+  evalRunDetailQueryOptions,
+  evalRunsQueryKey,
+  evalRunsQueryOptions,
+  evalSetsQueryOptions,
+  promptVersionsQueryOptions,
+} from "@/lib/queries/evals"
+import type { EvalRunListItem } from "@/types/api"
 
 export function useEvalSets() {
-  return useQuery({
-    queryKey: ["eval-sets"],
-    queryFn: () => apiClient.get<EvalSetListItem[]>("/eval/sets"),
-  })
+  return useQuery(evalSetsQueryOptions())
 }
 
 export function useEvalRuns() {
-  return useQuery({
-    queryKey: ["eval-runs"],
-    queryFn: () => apiClient.get<EvalRunListItem[]>("/eval/runs"),
-    refetchInterval: (query) => {
-      const items = (query.state.data as EvalRunListItem[] | undefined) ?? []
-      return items.some((r) => r.status === "pending" || r.status === "running")
-        ? 5_000
-        : false
-    },
-  })
+  return useQuery(evalRunsQueryOptions())
 }
 
 export function useEvalRunDetail(runId: string) {
   return useQuery({
-    queryKey: ["eval-run", runId],
-    queryFn: () => apiClient.get<EvalRunDetail>(`/eval/runs/${runId}`),
+    ...evalRunDetailQueryOptions(runId),
     enabled: !!runId,
   })
 }
 
 export function useEvalComparison(runAId: string, runBId: string) {
   return useQuery({
-    queryKey: ["eval-comparison", runAId, runBId],
-    queryFn: () =>
-      apiClient.get<EvalComparison>(
-        `/eval/runs/compare?run_a_id=${runAId}&run_b_id=${runBId}`
-      ),
+    ...evalComparisonQueryOptions(runAId, runBId),
     enabled: !!runAId && !!runBId,
   })
 }
 
 export function usePromptVersions() {
-  return useQuery({
-    queryKey: ["prompt-versions"],
-    queryFn: () => apiClient.get<PromptVersion[]>("/prompt-versions"),
-  })
+  return useQuery(promptVersionsQueryOptions())
 }
 
 export function useCreateEvalRun() {
@@ -60,7 +42,7 @@ export function useCreateEvalRun() {
     mutationFn: (body: { eval_set_id: string; prompt_version_id: string }) =>
       apiClient.post<EvalRunListItem>("/eval/runs", body),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["eval-runs"] })
+      queryClient.invalidateQueries({ queryKey: evalRunsQueryKey })
     },
   })
 }

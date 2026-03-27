@@ -1,11 +1,12 @@
 "use client"
 
-import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query"
+import { QueryClientProvider, useQueryClient } from "@tanstack/react-query"
 import { ThemeProvider } from "next-themes"
 import { useEffect, useRef, useState } from "react"
 
 import { authClient } from "@/lib/auth-client"
 import { clearTokenCache } from "@/lib/api-client"
+import { makeQueryClient } from "@/lib/query-client"
 
 function AuthQueryStateSync() {
   const queryClient = useQueryClient()
@@ -33,17 +34,7 @@ function AuthQueryStateSync() {
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 30 * 1000,
-            retry: 1,
-          },
-        },
-      })
-  )
+  const [queryClient] = useState(() => makeQueryClient())
 
   return (
     <ThemeProvider

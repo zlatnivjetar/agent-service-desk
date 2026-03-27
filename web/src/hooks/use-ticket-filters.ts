@@ -1,9 +1,10 @@
 "use client"
 
-import { useRouter, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import { useCallback } from "react"
 
 import { getDefaultRangePreset, getRangeBounds } from "@/lib/dashboard"
+import { replaceUrl } from "@/lib/url-state"
 
 export interface TicketFilters {
   status: string | null
@@ -19,7 +20,6 @@ export interface TicketFilters {
 
 export function useTicketFilters() {
   const searchParams = useSearchParams()
-  const router = useRouter()
 
   const filters: TicketFilters = {
     status: searchParams.get("status"),
@@ -46,9 +46,9 @@ export function useTicketFilters() {
         next.set(key, value)
       }
       next.set("page", "1")
-      router.push(`?${next.toString()}`)
+      replaceUrl(`?${next.toString()}`)
     },
-    [searchParams, router],
+    [searchParams],
   )
 
   const setRange = useCallback(
@@ -69,9 +69,9 @@ export function useTicketFilters() {
         next.delete("to")
       }
       next.set("page", "1")
-      router.push(`?${next.toString()}`)
+      replaceUrl(`?${next.toString()}`)
     },
-    [searchParams, router],
+    [searchParams],
   )
 
   const clearFilters = useCallback(() => {
@@ -81,8 +81,8 @@ export function useTicketFilters() {
     if (sb) next.set("sort_by", sb)
     if (so) next.set("sort_order", so)
     next.set("range", "30d")
-    router.push(`?${next.toString()}`)
-  }, [searchParams, router])
+    replaceUrl(`?${next.toString()}`)
+  }, [searchParams])
 
   const setSorting = useCallback(
     (by: string) => {
@@ -93,18 +93,18 @@ export function useTicketFilters() {
       next.set("sort_by", by)
       next.set("sort_order", newOrder)
       next.set("page", "1")
-      router.push(`?${next.toString()}`)
+      replaceUrl(`?${next.toString()}`)
     },
-    [searchParams, router],
+    [searchParams],
   )
 
   const setPage = useCallback(
     (newPage: number) => {
       const next = new URLSearchParams(searchParams.toString())
       next.set("page", String(newPage))
-      router.push(`?${next.toString()}`)
+      replaceUrl(`?${next.toString()}`)
     },
-    [searchParams, router],
+    [searchParams],
   )
 
   const hasActiveFilters =

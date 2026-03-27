@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
-import { apiClient } from "@/lib/api-client"
-import type { PaginatedResponse, TicketListItem } from "@/types/api"
+import { ticketsQueryOptions } from "@/lib/queries/tickets"
 
 export interface TicketParams {
   page?: number
@@ -23,15 +22,8 @@ export function useTickets(
   options?: { enabled?: boolean; refetchInterval?: number | false }
 ) {
   return useQuery({
-    queryKey: ["tickets", params],
+    ...ticketsQueryOptions(params),
     enabled: options?.enabled !== false,
     refetchInterval: options?.refetchInterval,
-    queryFn: () => {
-      const searchParams = new URLSearchParams()
-      Object.entries(params).forEach(([key, value]) => {
-        if (value != null) searchParams.set(key, String(value))
-      })
-      return apiClient.get<PaginatedResponse<TicketListItem>>(`/tickets?${searchParams}`)
-    },
   })
 }

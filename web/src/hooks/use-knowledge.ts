@@ -1,10 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient, API_URL, getToken } from "@/lib/api-client"
-import type {
-  KnowledgeDocDetail,
-  KnowledgeDocListItem,
-  PaginatedResponse,
-} from "@/types/api"
+import {
+  knowledgeDocDetailQueryOptions,
+  knowledgeDocsQueryOptions,
+} from "@/lib/queries/knowledge"
 
 export interface KnowledgeParams {
   page?: number
@@ -19,34 +18,14 @@ export function useKnowledgeDocs(
   options?: { enabled?: boolean }
 ) {
   return useQuery({
-    queryKey: ["knowledge-docs", params],
+    ...knowledgeDocsQueryOptions(params),
     enabled: options?.enabled !== false,
-    queryFn: () => {
-      const sp = new URLSearchParams()
-      Object.entries(params).forEach(([key, value]) => {
-        if (value != null) sp.set(key, String(value))
-      })
-      return apiClient.get<PaginatedResponse<KnowledgeDocListItem>>(
-        `/knowledge/documents?${sp}`
-      )
-    },
-    refetchInterval: (query) => {
-      const items =
-        (
-          query.state.data as
-            | PaginatedResponse<KnowledgeDocListItem>
-            | undefined
-        )?.items ?? []
-      return items.some((d) => d.status === "processing") ? 5_000 : false
-    },
   })
 }
 
 export function useKnowledgeDocDetail(docId: string) {
   return useQuery({
-    queryKey: ["knowledge-doc", docId],
-    queryFn: () =>
-      apiClient.get<KnowledgeDocDetail>(`/knowledge/documents/${docId}`),
+    ...knowledgeDocDetailQueryOptions(docId),
     enabled: !!docId,
   })
 }
