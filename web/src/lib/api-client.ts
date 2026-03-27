@@ -37,6 +37,7 @@ export const API_URL = resolveApiUrl();
 
 let cachedToken: string | null = null;
 let tokenExpiry: number = 0;
+let tokenFetchPromise: Promise<string> | null = null;
 
 function redirectToLogin() {
   clearTokenCache();
@@ -49,24 +50,34 @@ export async function getToken(): Promise<string> {
   if (cachedToken && Date.now() < tokenExpiry - 30_000) {
     return cachedToken;
   }
-  const res = await fetch("/api/token", { method: "POST" });
-  if (!res.ok) {
-    if (res.status === 401 || res.status === 403) {
-      redirectToLogin();
-    }
+  if (tokenFetchPromise) return tokenFetchPromise;
 
-    const errorBody = await res.json().catch(() => ({ error: "Failed to get API token" }));
-    throw Object.assign(new Error(errorBody.error ?? "Failed to get API token"), {
-      status: res.status,
-      body: errorBody,
+  tokenFetchPromise = fetch("/api/token", { method: "POST" })
+    .then(async (res) => {
+      tokenFetchPromise = null;
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          redirectToLogin();
+        }
+        const errorBody = await res.json().catch(() => ({ error: "Failed to get API token" }));
+        throw Object.assign(new Error(errorBody.error ?? "Failed to get API token"), {
+          status: res.status,
+          body: errorBody,
+        });
+      }
+      const data = await res.json();
+      cachedToken = data.token as string;
+      // Decode exp from JWT payload (no signature verification needed client-side)
+      const payload = JSON.parse(atob(cachedToken.split(".")[1]));
+      tokenExpiry = payload.exp * 1000;
+      return cachedToken;
+    })
+    .catch((err) => {
+      tokenFetchPromise = null;
+      throw err;
     });
-  }
-  const data = await res.json();
-  cachedToken = data.token as string;
-  // Decode exp from JWT payload (no signature verification needed client-side)
-  const payload = JSON.parse(atob(cachedToken.split(".")[1]));
-  tokenExpiry = payload.exp * 1000;
-  return cachedToken;
+
+  return tokenFetchPromise;
 }
 
 async function request<T>(
@@ -102,6 +113,7 @@ async function request<T>(
 export function clearTokenCache() {
   cachedToken = null;
   tokenExpiry = 0;
+  tokenFetchPromise = null;
 }
 
 export const apiClient = {

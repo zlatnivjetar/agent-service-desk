@@ -1,34 +1,19 @@
+import { Suspense } from "react"
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Card, CardContent } from "@/components/ui/card"
 
 import OverviewPageClient from "@/app/(app)/overview/overview-page-client"
-import { overviewCombinedQueryOptions } from "@/lib/actions/overview"
-import {
-  getAgeBucketRange,
-  getDefaultRangePreset,
-  getPreviousRangeBounds,
-  getRangeBounds,
-} from "@/lib/dashboard"
+import { OverviewMetricsSection } from "@/app/(app)/overview/overview-metrics-section"
+import { OverviewTicketsSection } from "@/app/(app)/overview/overview-tickets-section"
 import { getQueryClient } from "@/lib/get-query-client"
 import {
   dashboardPreferencesQueryOptions,
   dashboardSavedViewsQueryOptions,
 } from "@/lib/queries/dashboard"
-import { ticketsQueryOptions } from "@/lib/queries/tickets"
-import { getRouteParamValue, type RouteSearchParams } from "@/lib/route-params"
+import { type RouteSearchParams } from "@/lib/route-params"
 import { serverApiClient } from "@/lib/server-api-client"
 import { getServerAuthContext } from "@/lib/server-auth"
-
-function maxDate(a: string | null, b: string | null) {
-  if (!a) return b
-  if (!b) return a
-  return a > b ? a : b
-}
-
-function minDate(a: string | null, b: string | null) {
-  if (!a) return b
-  if (!b) return a
-  return a < b ? a : b
-}
 
 export default async function OverviewPage({
   searchParams,
@@ -43,76 +28,71 @@ export default async function OverviewPage({
     authContext?.currentUser.role === "team_lead"
 
   if (isInternal) {
-    const range = getDefaultRangePreset(getRouteParamValue(resolvedSearchParams.range) ?? null)
-    const from = getRouteParamValue(resolvedSearchParams.from) ?? null
-    const to = getRouteParamValue(resolvedSearchParams.to) ?? null
-    const team = getRouteParamValue(resolvedSearchParams.team) ?? null
-    const assigneeId = getRouteParamValue(resolvedSearchParams.assignee_id) ?? null
-    const selectedStatus = getRouteParamValue(resolvedSearchParams.status) ?? null
-    const selectedPriority = getRouteParamValue(resolvedSearchParams.priority) ?? null
-    const selectedAgeBucket = getRouteParamValue(resolvedSearchParams.age_bucket) ?? null
-    const compareMode = getRouteParamValue(resolvedSearchParams.compare) === "1"
-    const page = Math.max(1, Number(getRouteParamValue(resolvedSearchParams.page) ?? "1"))
-
-    const rangeBounds = getRangeBounds(range, from, to)
-    const comparisonBounds = compareMode
-      ? getPreviousRangeBounds(rangeBounds.from, rangeBounds.to)
-      : null
-    const ageBounds = selectedAgeBucket
-      ? getAgeBucketRange(selectedAgeBucket, rangeBounds.to)
-      : { from: null, to: null }
-    const createdFrom = maxDate(rangeBounds.from, ageBounds.from)
-    const createdTo = minDate(rangeBounds.to, ageBounds.to)
-
     await Promise.all([
       queryClient.prefetchQuery(dashboardPreferencesQueryOptions(serverApiClient)),
       queryClient.prefetchQuery(dashboardSavedViewsQueryOptions("overview", serverApiClient)),
-      queryClient.prefetchQuery(
-        overviewCombinedQueryOptions(
-          {
-            params: {
-              range,
-              from: range === "custom" ? from : undefined,
-              to: range === "custom" ? to : undefined,
-              team,
-              assignee_id: assigneeId,
-            },
-            comparisonParams: comparisonBounds
-              ? {
-                  range: "custom",
-                  from: comparisonBounds.from,
-                  to: comparisonBounds.to,
-                  team,
-                  assignee_id: assigneeId,
-                }
-              : null,
-          },
-          serverApiClient
-        )
-      ),
-      queryClient.prefetchQuery(
-        ticketsQueryOptions(
-          {
-            page,
-            per_page: 10,
-            status: selectedStatus,
-            priority: selectedPriority,
-            team,
-            assignee_id: assigneeId,
-            created_from: createdFrom,
-            created_to: createdTo,
-            sort_by: "created_at",
-            sort_order: "desc",
-          },
-          serverApiClient
-        )
-      ),
     ])
   }
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
-      <OverviewPageClient />
+      <OverviewPageClient
+        metricsSection={
+          isInternal ? (
+            <Suspense fallback={<OverviewMetricsFallback />}>
+              <OverviewMetricsSection searchParams={resolvedSearchParams} />
+            </Suspense>
+          ) : null
+        }
+        ticketsSection={
+          isInternal ? (
+            <Suspense fallback={<OverviewTicketsFallback />}>
+              <OverviewTicketsSection searchParams={resolvedSearchParams} />
+            </Suspense>
+          ) : null
+        }
+      />
     </HydrationBoundary>
+  )
+}
+
+function OverviewMetricsFallback() {
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Card key={i}>
+            <CardContent className="p-6">
+              <Skeleton className="mb-2 h-4 w-32" />
+              <Skeleton className="h-8 w-16" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <div className="grid gap-4 xl:grid-cols-[1.35fr_1fr]">
+        <Card>
+          <CardContent className="p-6">
+            <Skeleton className="h-[200px] w-full rounded-lg" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6">
+            <Skeleton className="h-[200px] w-full rounded-lg" />
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
+
+function OverviewTicketsFallback() {
+  return (
+    <Card>
+      <CardContent className="space-y-3 p-6">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} className="h-8 w-full" />
+        ))}
+      </CardContent>
+    </Card>
   )
 }
