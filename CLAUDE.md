@@ -6,7 +6,7 @@
 
 No pre-defined plan, we will apply fixes as we go.
 
-## Remaining Milestone
+## Current Milestone
 
 **→ Milestone 6D: Demo Walkthrough & README**
 
